@@ -2,13 +2,20 @@
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
+extern crate serde;
 extern crate reqwest;
 pub mod token;
 pub mod gog;
 use gog::*;
+use domains::*;
+use ErrorType::*;
 use token::Token;
-use serde_json::value::Value;
-use reqwest::Client;
+use serde_json::value::{Map, Value};
+use reqwest::{Client, Method, Response};
+use std::result::Result;
+use serde::de::DeserializeOwned;
+const GET : Method = Method::GET;
+const POST : Method = Method::POST;
 pub struct Gog {
     pub token:Token,
     pub client: Client
@@ -30,8 +37,47 @@ impl Gog {
             client:client.build().unwrap()
         };
     }
-    pub fn get_user_data(&self) -> UserData {
-         let udata : UserData = serde_json::from_str(&self.client.get("https://embed.gog.com/userData.json").send().unwrap().text().unwrap()).unwrap();
-         udata
+    fn rget(&self, domain: &str, path: &str , params:Option<Map<String, Value>>) -> Result<Response, reqwest::Error> {
+        let mut url = domain.to_string()+path;
+        if params.is_some() {
+            let params = params.unwrap();
+            if params.len() > 0 {
+                url = url + "?";
+                for (k, v) in params.iter() {
+                    url = url + k+"="+&v.to_string() + "&";
+                }
+                url.pop();
+            }
+        }
+        let res =  self.client.get(&url).send();
+        return res;
     }
+    fn fget <T> (&self, domain:&str, path:&str, params:Option<Map<String, Value>>) -> Result<T, Error> where T: DeserializeOwned, {
+        let res = self.rget(domain, path, params);
+        if res.is_err() {
+            return Err(Error {
+                etype: Req,
+                error:Some(res.err().unwrap()),
+                msg:None
+            });
+        } else {
+            let st = res.unwrap().text().unwrap();
+            let try : Result<T, serde_json::Error> = serde_json::from_str(&st);
+            if try.is_ok() {
+                return Ok(try.unwrap());
+            } else {
+                return Err(Error {
+                    etype: Gog,
+                    msg: Some(st),
+                    error:None
+                });
+            }
+        }
+    }
+    pub fn get_user_data(&self) -> Result<UserData, Error> {
+        self.fget(EMBD, "/userData.json", None)
+    }
+}
+fn map_p (map: Value) -> Option<Map<String, Value>> {
+    return Some(map.as_object().unwrap().clone());
 }
