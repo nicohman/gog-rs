@@ -16,6 +16,11 @@ use std::result::Result;
 use serde::de::DeserializeOwned;
 const GET : Method = Method::GET;
 const POST : Method = Method::POST;
+macro_rules! map_p {
+    ($($js: tt)+) => {
+        Some(json!($($js)+).as_object().unwrap().clone())
+    }
+}
 pub struct Gog {
     pub token:Token,
     pub client: Client
@@ -77,7 +82,13 @@ impl Gog {
     pub fn get_user_data(&self) -> Result<UserData, Error> {
         self.fget(EMBD, "/userData.json", None)
     }
+    pub fn get_pub_info(&self, uid: i64, expand:Vec<String>) -> Result<PubInfo, Error> {
+        let r : Result<PubInfo, Error> = self.fget(EMBD, &("/users/info/".to_string()+&uid.to_string()), map_p!({
+            "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap()
+        }));
+        r
+    }
 }
-fn map_p (map: Value) -> Option<Map<String, Value>> {
-    return Some(map.as_object().unwrap().clone());
+fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
+    return Ok(acc +","+now);
 }
