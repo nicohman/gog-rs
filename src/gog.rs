@@ -5,6 +5,7 @@ use serde_json::value::{Map, Value};
 use serde::Deserializer;
 use serde::de::Deserialize;
 use std::fmt;
+use containers::*;
 /// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
@@ -38,6 +39,7 @@ impl fmt::Display for Currency {
         write!(f, "{:?}", self)
     }
 }
+/// Available languages 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Language {
     /// en-US
@@ -129,11 +131,13 @@ pub struct UserData {
     pub personalized_product_prices: Vec<Map<String, Value>>,
     pub personalized_series_prices: Vec<Map<String, Value>>,
 }
+/// Information on a currency
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CurrencyInfo {
     pub code: Currency,
     pub symbol: String,
 }
+/// Informationn on a language
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LanguageInfo {
     pub code: String,
@@ -173,12 +177,14 @@ pub struct Error {
     pub error: Option<reqwest::Error>,
 }
 impl Error {
+    /// Checks if an error comes from reqwest
     pub fn is_req(&self) -> bool {
         match self.etype {
             ErrorType::Gog => true,
             _ => false,
         }
     }
+    /// Checks if an error comes from GOG
     pub fn is_gog(&self) -> bool {
         match self.etype {
             ErrorType::Req => true,
@@ -198,10 +204,6 @@ pub struct PubInfo {
     pub wishlist_status: status::WishlistStatus,
     pub blocked_status: Option<status::BlockedStatus>,
     pub chat_status: Option<status::ChatStatus>,
-}
-#[derive(Serialize, Deserialize, Debug)]
-pub struct OwnedGames {
-    pub owned: Vec<i64>
 }
 /// All of the details of a specific game
 #[derive(Serialize, Deserialize, Debug)]
@@ -223,47 +225,7 @@ pub struct GameDetails {
     pub is_base_product_missing: bool,
     pub missing_base_product: Option<Value>
 }
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct GameDetailsP {
-    pub title: String,
-    pub background_image : String,
-    pub cd_key: Option<String>,
-    pub text_information: String,
-    pub downloads: Vec<Vec<Value>>,
-    pub extras: Vec<Extra>,
-    pub dlcs: Value,
-    pub tags: Vec<Tag>,
-    pub is_pre_order: bool,
-    pub release_timestamp: i64,
-    pub messages: Vec<Value>,
-    pub changelog: Option<String>,
-    pub forum_link: String,
-    pub is_base_product_missing: bool,
-    pub missing_base_product: Option<Value>
-}
-impl GameDetailsP {
-    //Yes, this is bad.
-    pub fn to_details(&mut self, down: Downloads) -> GameDetails {
-        return GameDetails {
-            title:self.title.clone(),
-            background_image:self.background_image.clone(),
-            cd_key:self.cd_key.clone(),
-            text_information:self.text_information.clone(),
-            downloads:down,
-            extras:self.extras.clone(),
-            dlcs:self.dlcs.clone(),
-            tags:self.tags.clone(),
-            is_pre_order:self.is_pre_order.clone(),
-            release_timestamp:self.release_timestamp.clone(),
-            messages:self.messages.clone(),
-            changelog:self.changelog.clone(),
-            forum_link:self.forum_link.clone(),
-            is_base_product_missing:self.is_base_product_missing.clone(),
-            missing_base_product:self.missing_base_product.clone()
-        };
-    }
-}
+/// An extra that comes with a game, like wallpapers or soundtrack
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Extra {
@@ -275,6 +237,7 @@ pub struct Extra {
     pub info: i64,
     pub size: String
 }
+/// A 'tag' on a game like Favorite
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Tag {
@@ -282,12 +245,14 @@ pub struct Tag {
     pub name: String,
     pub product_count: String
 }
+/// A set of builds for a game for different OSes
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Downloads {
     pub windows: Option<Vec<Download>>,
     pub mac: Option<Vec<Download>>,
     pub linux: Option<Vec<Download>>
 }
+/// Information on an available build of a game
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Download {
@@ -298,6 +263,7 @@ pub struct Download {
     pub date: String,
     pub size: String
 }
+/// A user's wishlist
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Wishlist {
     /// Keys in wishlist are the game ids of wishlisted games

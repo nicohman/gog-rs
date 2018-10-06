@@ -1,3 +1,6 @@
+//! This crate provides an easy interface to communicate with the not-so-easy (unofficial) GOG API.
+//! Many thanks to [Yepoleb](https://github.com/Yepoleb), who made
+//! [this](https://gogapidocs.readthedocs.io/en/latest/index.html) very helpful set of docs.
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
@@ -8,6 +11,8 @@ extern crate reqwest;
 pub mod token;
 /// Module for GOG structs and responses
 pub mod gog;
+mod containers;
+use containers::*;
 use gog::*;
 use domains::*;
 use ErrorType::*;
@@ -132,7 +137,7 @@ impl Gog {
     pub fn add_wishlist(&self, game_id: i64) -> Result<Wishlist, Error> {
         self.fget(EMBD, &("/user/wishlist/add/".to_string()+&game_id.to_string()), None)
     }
-    /// Removes an item from wishlist. Returns withlist
+    /// Removes an item from wishlist. Returns wishlist
     pub fn rm_wishlist(&self, game_id: i64) -> Result<Wishlist, Error> {
         self.fget(EMBD, &("/user/wishlist/remove/".to_string()+&game_id.to_string()), None)
     }
