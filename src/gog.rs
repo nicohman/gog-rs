@@ -2,6 +2,7 @@ use reqwest;
 use serde;
 use serde_json::value::Map;
 use serde_json::value::Value;
+/// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
     pub static CFG: &str = "https://cfg.gog.com";
@@ -14,11 +15,14 @@ pub mod domains {
     pub static EMBD: &str = "https://embed.gog.com";
     pub static AUTH: &str = "https://auth.gog.com";
 }
+/// Statuses from get_pub_info
 pub mod status {
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct FriendStatus {
         pub id: String,
+        /// 0 is no friend status, 1 is having sent a friend request to this user, 2 is them having
+        ///   sent you a friend request, and 3 is currently being friends
         pub status: i32,
         pub date_created: Option<String>,
         pub date_accepted: Option<String>,
@@ -26,6 +30,7 @@ pub mod status {
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct WishlistStatus {
+        /// 0 is private, 1 is public, and 2 is for friends only
         pub sharing: i32,
         pub url: String,
     }
@@ -41,6 +46,7 @@ pub mod status {
         pub is_chat_restricted: bool,
     }
 }
+/// An user's avatar urls
 #[derive(Serialize, Deserialize, Debug)] 
 #[serde(rename_all = "camelCase")]
 pub struct Avatars {
@@ -52,6 +58,7 @@ pub struct Avatars {
     pub large2x: String
 }
 use status::*;
+///Data on the currently logged-in user
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserData {
@@ -79,6 +86,7 @@ pub struct Language {
     pub code: String,
     pub name: String,
 }
+/// The checksums of various user data
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Checksum {
     pub cart: Option<String>,
@@ -87,6 +95,7 @@ pub struct Checksum {
     pub reviews_votes: Option<String>,
     pub games_rating: Option<String>,
 }
+/// Waiting notifications for a user
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Updates {
@@ -97,11 +106,13 @@ pub struct Updates {
     pub forum: Option<i32>,
     pub total: Option<i32>,
 }
+/// The Different types of error
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ErrorType {
     Gog,
     Req,
 }
+///An Error from an API Call. Can either be an error on reqwest's side, or Gog
 #[derive(Debug)]
 pub struct Error {
     pub etype: ErrorType,
@@ -122,6 +133,7 @@ impl Error {
         }
     }
 }
+/// Publically available info about an user
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PubInfo {

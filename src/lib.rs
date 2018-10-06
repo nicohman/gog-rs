@@ -4,7 +4,9 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate serde;
 extern crate reqwest;
+/// Module for OAuth token stuff
 pub mod token;
+/// Module for GOG structs and responses
 pub mod gog;
 use gog::*;
 use domains::*;
@@ -21,14 +23,17 @@ macro_rules! map_p {
         Some(json!($($js)+).as_object().unwrap().clone())
     }
 }
+/// The main GOG Struct that you'll use to make API calls.
 pub struct Gog {
     pub token:Token,
-    pub client: Client
+    client: Client
 }
 impl Gog {
+    /// Initializes out of a token from a login code
     pub fn from_login_code(code: &str) -> Gog {
         Gog::from_token(Token::from_login_code(code).unwrap())
     }
+    /// Creates using a pre-made token
     pub fn new(token: Token) -> Gog {
         Gog::from_token(token)
     }
@@ -79,9 +84,11 @@ impl Gog {
             }
         }
     }
+    /// Gets the data of the user that is currently logged in
     pub fn get_user_data(&self) -> Result<UserData, Error> {
         self.fget(EMBD, "/userData.json", None)
     }
+    /// Gets any publically available data about a user
     pub fn get_pub_info(&self, uid: i64, expand:Vec<String>) -> Result<PubInfo, Error> {
         let r : Result<PubInfo, Error> = self.fget(EMBD, &("/users/info/".to_string()+&uid.to_string()), map_p!({
             "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap()
