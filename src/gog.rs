@@ -247,4 +247,9 @@ pub struct Download {
     pub date: String,
     pub size: String
 }
-
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Wishlist {
+    /// Keys in wishlist are the game ids of wishlisted games
+    pub wishlist: Map<String, Value>,
+    pub checksum: String
+}

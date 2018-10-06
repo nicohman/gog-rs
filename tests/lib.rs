@@ -13,5 +13,8 @@ fn get_token() {
     println!("{:?}", gog.get_pub_info(49171277422358, exp));
     println!("{:?}", gog.get_games());
     println!("{:?}", gog.get_game_details(1452598881));
+    println!("{:?}", gog.wishlist());
+    println!("{:?}",gog.add_wishlist(1096313866));
+    println!("{:?}", gog.rm_wishlist(1096313866));
 }
 

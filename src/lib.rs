@@ -124,6 +124,18 @@ impl Gog {
     pub fn reveal_product(&self, game_id:i64) {
         self.client.get(&(EMBD.to_string()+"/account/revealProduct"+&game_id.to_string())).send();
     }
+    /// Gets the wishlist of the current user
+    pub fn wishlist(&self) -> Result<Wishlist, Error> {
+        self.fget(EMBD, "/user/wishlist.json", None)
+    }
+    /// Adds an item to the wishlist. Returns wishlist
+    pub fn add_wishlist(&self, game_id: i64) -> Result<Wishlist, Error> {
+        self.fget(EMBD, &("/user/wishlist/add/".to_string()+&game_id.to_string()), None)
+    }
+    /// Removes an item from wishlist. Returns withlist
+    pub fn rm_wishlist(&self, game_id: i64) -> Result<Wishlist, Error> {
+        self.fget(EMBD, &("/user/wishlist/remove/".to_string()+&game_id.to_string()), None)
+    }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
     return Ok(acc +","+now);
