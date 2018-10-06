@@ -104,6 +104,7 @@ impl Gog {
             return Err(r.err().unwrap());
         }
     }
+    /// Gets more info about a game by gameid
     pub fn get_game_details(&self, game_id:i64) -> Result<GameDetails, Error>{
         let r : Result<GameDetailsP, Error> = self.fget(EMBD, &("/account/gameDetails/".to_string()+&game_id.to_string()+".json"),None);
         if r.is_ok() {
@@ -114,6 +115,14 @@ impl Gog {
         } else {
             return Err(r.err().unwrap());
         }
+    }
+    /// Hides a product from your library
+    pub fn hide_product(&self, game_id:i64) {
+        self.client.get(&(EMBD.to_string()+"/account/hideProduct/"+&game_id.to_string())).send();
+    }
+    /// Reveals a product in your library
+    pub fn reveal_product(&self, game_id:i64) {
+        self.client.get(&(EMBD.to_string()+"/account/revealProduct"+&game_id.to_string())).send();
     }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
