@@ -78,7 +78,7 @@ impl Gog {
             } else {
                 return Err(Error {
                     etype: Gog,
-                    msg: Some(st),
+                    msg: Some(format!("{:?}", try.err().unwrap())),
                     error:None
                 });
             }
@@ -135,6 +135,24 @@ impl Gog {
     /// Removes an item from wishlist. Returns withlist
     pub fn rm_wishlist(&self, game_id: i64) -> Result<Wishlist, Error> {
         self.fget(EMBD, &("/user/wishlist/remove/".to_string()+&game_id.to_string()), None)
+    }
+    /// Sets birthday of account. Date should be in ISO 8601 format
+    pub fn save_birthday(&self, bday: &str) {
+        self.client.get(&(EMBD.to_string()+"/account/save_birthday/"+bday)).send();
+    }
+    /// Sets country of account. Country should be in ISO 3166 format
+    pub fn save_country(&self, country: &str) {
+        self.client.get(&(EMBD.to_string()+"/account/save_country/"+country)).send();
+    }
+    /// Changes default currency. Currency is in ISO 4217 format. Only currencies supported are
+    /// ones in the currency enum.
+    pub fn save_currency(&self, currency: Currency) {
+        self.client.get(&(EMBD.to_string()+"/user/changeCurrency/"+&currency.to_string())).send();
+    }
+    /// Changes default language. Possible languages are available as constants in the langauge
+    /// enum.
+    pub fn save_language(&self, language: Language) {
+        self.client.get(&(EMBD.to_string()+"/user/changeLanguage/"+&language.to_string())).send();
     }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {

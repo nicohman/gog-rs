@@ -4,6 +4,7 @@ use serde_json;
 use serde_json::value::{Map, Value};
 use serde::Deserializer;
 use serde::de::Deserialize;
+use std::fmt;
 /// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
@@ -16,6 +17,56 @@ pub mod domains {
     pub static USRS: &str = "https://users.gog.com";
     pub static EMBD: &str = "https://embed.gog.com";
     pub static AUTH: &str = "https://auth.gog.com";
+}
+/// Available currencies
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Currency {
+    USD,
+    EUR,
+    GBP,
+    AUD,
+    RUB,
+    PLN,
+    CAD,
+    CHF,
+    NOK,
+    SEK,
+    DKK
+}
+impl fmt::Display for Currency {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Language {
+    /// en-US
+    ENUS,
+    /// fr-FR
+    FR,
+    /// pt-BR
+    PTBR,
+    /// ru-RU
+    RU,
+    /// de-DE
+    DE,
+    /// zh-HANS
+    ZH
+}
+impl fmt::Display for Language {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let res = match(&self) {
+            ENUS => "en-US",
+            FR => "fr-FR",
+            PTBR => "pt-BR",
+            RU => "ru-RU",
+            DE => "de-DE",
+            ZH => "zh-HANS",
+            // Sorry
+            _ => "en-US"
+        };
+        write!(f, "{}", res)
+    }
 }
 /// Statuses from get_pub_info
 pub mod status {
@@ -65,26 +116,26 @@ use status::*;
 #[serde(rename_all = "camelCase")]
 pub struct UserData {
     pub country: String,
-    pub currencies: Vec<Currency>,
-    pub selected_currency: Currency,
-    pub preferred_language: Language,
+    pub currencies: Vec<CurrencyInfo>,
+    pub selected_currency: CurrencyInfo,
+    pub preferred_language: LanguageInfo,
     pub rating_brand: String,
     pub is_logged_in: bool,
     pub checksum: Checksum,
     pub updates: Updates,
-    pub user_id: i64,
+    pub user_id: String,
     pub username: String,
     pub email: String,
     pub personalized_product_prices: Vec<Map<String, Value>>,
     pub personalized_series_prices: Vec<Map<String, Value>>,
 }
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Currency {
-    pub code: String,
+pub struct CurrencyInfo {
+    pub code: Currency,
     pub symbol: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Language {
+pub struct LanguageInfo {
     pub code: String,
     pub name: String,
 }
@@ -139,14 +190,14 @@ impl Error {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PubInfo {
-    pub id: i32,
+    pub id: String,
     pub username: String,
     pub user_since: i64,
     pub avatars: Option<Avatars>,
     pub friend_status: FriendStatus,
     pub wishlist_status: status::WishlistStatus,
-    pub blocked_status: status::BlockedStatus,
-    pub chat_status: status::ChatStatus,
+    pub blocked_status: Option<status::BlockedStatus>,
+    pub chat_status: Option<status::ChatStatus>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OwnedGames {
