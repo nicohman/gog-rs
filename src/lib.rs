@@ -95,6 +95,26 @@ impl Gog {
         }));
         r
     }
+    /// Gets a user's owned games. Only gameids.
+    pub fn get_games(&self) -> Result<Vec<i64>,Error> {
+        let r : Result<OwnedGames, Error> = self.fget(EMBD, "/user/data/games", None);
+        if r.is_ok() {
+            return Ok(r.unwrap().owned);
+        } else {
+            return Err(r.err().unwrap());
+        }
+    }
+    pub fn get_game_details(&self, game_id:i64) -> Result<GameDetails, Error>{
+        let r : Result<GameDetailsP, Error> = self.fget(EMBD, &("/account/gameDetails/".to_string()+&game_id.to_string()+".json"),None);
+        if r.is_ok() {
+            let mut res = r.unwrap();
+            res.downloads[0].remove(0);
+            let downloads : Downloads = serde_json::from_str(&serde_json::to_string(&res.downloads[0][0]).unwrap()).unwrap();
+            Ok(res.to_details(downloads))
+        } else {
+            return Err(r.err().unwrap());
+        }
+    }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
     return Ok(acc +","+now);

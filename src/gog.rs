@@ -1,7 +1,9 @@
 use reqwest;
 use serde;
-use serde_json::value::Map;
-use serde_json::value::Value;
+use serde_json;
+use serde_json::value::{Map, Value};
+use serde::Deserializer;
+use serde::de::Deserialize;
 /// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
@@ -146,3 +148,103 @@ pub struct PubInfo {
     pub blocked_status: status::BlockedStatus,
     pub chat_status: status::ChatStatus,
 }
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OwnedGames {
+    pub owned: Vec<i64>
+}
+/// All of the details of a specific game
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct GameDetails {
+    pub title: String,
+    pub background_image : String,
+    pub cd_key: Option<String>,
+    pub text_information: String,
+    pub downloads: Downloads,
+    pub extras: Vec<Extra>,
+    pub dlcs: Value,
+    pub tags: Vec<Tag>,
+    pub is_pre_order: bool,
+    pub release_timestamp: i64,
+    pub messages: Vec<Value>,
+    pub changelog: Option<String>,
+    pub forum_link: String,
+    pub is_base_product_missing: bool,
+    pub missing_base_product: Option<Value>
+}
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct GameDetailsP {
+    pub title: String,
+    pub background_image : String,
+    pub cd_key: Option<String>,
+    pub text_information: String,
+    pub downloads: Vec<Vec<Value>>,
+    pub extras: Vec<Extra>,
+    pub dlcs: Value,
+    pub tags: Vec<Tag>,
+    pub is_pre_order: bool,
+    pub release_timestamp: i64,
+    pub messages: Vec<Value>,
+    pub changelog: Option<String>,
+    pub forum_link: String,
+    pub is_base_product_missing: bool,
+    pub missing_base_product: Option<Value>
+}
+impl GameDetailsP {
+    //Yes, this is bad.
+    pub fn to_details(&mut self, down: Downloads) -> GameDetails {
+        return GameDetails {
+            title:self.title.clone(),
+            background_image:self.background_image.clone(),
+            cd_key:self.cd_key.clone(),
+            text_information:self.text_information.clone(),
+            downloads:down,
+            extras:self.extras.clone(),
+            dlcs:self.dlcs.clone(),
+            tags:self.tags.clone(),
+            is_pre_order:self.is_pre_order.clone(),
+            release_timestamp:self.release_timestamp.clone(),
+            messages:self.messages.clone(),
+            changelog:self.changelog.clone(),
+            forum_link:self.forum_link.clone(),
+            is_base_product_missing:self.is_base_product_missing.clone(),
+            missing_base_product:self.missing_base_product.clone()
+        };
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Extra {
+    pub manual_url: String,
+    pub downloader_url: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub type_e:String,
+    pub info: i64,
+    pub size: String
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Tag {
+    pub id: String,
+    pub name: String,
+    pub product_count: String
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Downloads {
+    pub windows: Option<Vec<Download>>,
+    pub mac: Option<Vec<Download>>,
+    pub linux: Option<Vec<Download>>
+}
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Download {
+    pub manual_url: String,
+    pub downloader_url: String,
+    pub name : String,
+    pub version: Option<String>,
+    pub date: String,
+    pub size: String
+}
+
