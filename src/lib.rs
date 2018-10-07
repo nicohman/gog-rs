@@ -16,6 +16,7 @@ use containers::*;
 use gog::*;
 use domains::*;
 use connect::*;
+use product::*;
 use ErrorType::*;
 use token::Token;
 use serde_json::value::{Map, Value};
@@ -127,7 +128,7 @@ impl Gog {
             } else {
                 return Err(Error {
                     etype: Gog,
-                    msg: Some(format!("{:?}", try.err().unwrap())),
+                    msg: Some(format!("{:?}\n{}", try.err().unwrap(), st)),
                     error: None,
                 });
             }
@@ -244,19 +245,54 @@ impl Gog {
     }
     /// Gets info about the steam account linked to GOG Connect for the user id
     pub fn connect_account(&self, user_id: i64) -> Result<LinkedSteam, Error> {
-        self.fget(EMBD, &("/api/v1/users/".to_string()+&user_id.to_string()+"/gogLink/steam/linkedAccount"), None)
+        self.fget(
+            EMBD,
+            &("/api/v1/users/".to_string() + &user_id.to_string() + "/gogLink/steam/linkedAccount"),
+            None,
+        )
     }
     /// Gets claimable status of currently available games on GOG Connect
     pub fn connect_status(&self, user_id: i64) -> Result<ConnectStatus, Error> {
-        self.fget(EMBD, &("/api/v1/users/".to_string()+ &user_id.to_string()+"/gogLink/steam/exchangeableProducts"), None)
+        self.fget(
+            EMBD,
+            &("/api/v1/users/".to_string() + &user_id.to_string() +
+                  "/gogLink/steam/exchangeableProducts"),
+            None,
+        )
     }
     /// Scans Connect for claimable games
     pub fn connect_scan(&self, user_id: i64) {
-        self.client.get(&(EMBD.to_string()+"/api/v1/users/"+&user_id.to_string()+"/gogLink/steam/synchronizeUserProfile")).send();
+        self.client
+            .get(
+                &(EMBD.to_string() + "/api/v1/users/" + &user_id.to_string() +
+                      "/gogLink/steam/synchronizeUserProfile"),
+            )
+            .send();
     }
     /// Claims all available Connect games
     pub fn connect_claim(&self, user_id: i64) {
-        self.client.get(&(EMBD.to_string()+"/api/v1/users/"+&user_id.to_string()+"/gogLink/steam/claimProducts")).send();
+        self.client
+            .get(
+                &(EMBD.to_string() + "/api/v1/users/" + &user_id.to_string() +
+                      "/gogLink/steam/claimProducts"),
+            )
+            .send();
+    }
+    /// Returns detailed info about a product/products.
+    pub fn product(&self, ids: Vec<i64>, expand: Vec<String>) -> Result<Vec<Product>, Error> {
+        let r: Result<Vec<Product>, Error> = self.fget(
+            API,
+            "/products",
+            map_p!({
+            "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap(),
+            "ids": ids.iter().try_fold("".to_string(), |acc, x|{
+                let done : Result<String, Error> = Ok(acc +"," +&x.to_string());
+                done
+            }).unwrap()
+        }),
+        );
+        r
+
     }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {

@@ -9,7 +9,7 @@ use containers::*;
 use std::marker::PhantomData;
 use serde::de::{Visitor, MapAccess};
 use std::collections::{btree_map, BTreeMap};
-type GMap<K, V> = BTreeMap<K,V>;
+type GMap<K, V> = BTreeMap<K, V>;
 /// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
@@ -108,7 +108,7 @@ pub mod status {
 /// GOG Connect-related structs
 pub mod connect {
     use gog::GMap;
-    use serde_json::value::{Map, Value};    
+    use serde_json::value::{Map, Value};
     /// A GOG Connect-linked steam account
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
@@ -148,6 +148,111 @@ pub mod connect {
         IMPORTED,
         READY_TO_LINK,
         UNAVAILABLE,
+    }
+}
+/// Things associated with the /products endpoinnt
+pub mod product {
+    use serde_json::value::{Map, Value};    
+    /// The main product struct
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Product {
+        pub id: i64,
+        pub title: String,
+        #[serde(default)]
+        pub purchase_link: Option<String>,
+        pub slug: String,
+        pub content_system_compatibility: OSSupport,
+        pub languages: Map<String, Value>,
+        pub links: Links,
+        pub in_development: InDev,
+        pub is_secret: bool,
+        pub game_type: String,
+        pub is_pre_order: bool,
+        pub release_date: Option<String>,
+        pub images: Images,
+        pub dlcs: Value,
+        pub downloads: Option<DownObject>,
+        pub expanded_dlcs: Option<Vec<Value>>,
+        pub description: Option<Description>,
+        pub screenshots: Option<Vec<Screenshot>>,
+        pub videos: Option<Value>,
+        pub related_products: Option<Value>,
+        pub changelog: Option<Value>,
+    }
+    /// What OS' this product supports
+    #[derive(Serialize, Deserialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub struct OSSupport {
+        pub windows: bool,
+        pub osx: bool,
+        pub linux: bool,
+    }
+    /// Various links to things related to a game
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Links {
+        pub purchase_link: String,
+        pub product_card: String,
+        pub support: String,
+        pub forum: String,
+    }
+    /// Whether or not a game is currently being developed
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct InDev {
+        pub active: bool,
+        pub until: Option<String>,
+    }
+    /// Logos/Icons for a game
+    #[derive(Serialize, Deserialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub struct Images {
+        pub background: String,
+        pub logo: String,
+        pub logo2x: String,
+        pub icon: String,
+        pub sidebar_icon: String,
+        pub sidebar_icon2x: String,
+    }
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct DownObject {
+        pub installers: Vec<Installer>,
+    }
+    /// An installer & its info
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Installer {
+        pub id: String,
+        pub name: String,
+        pub os: String,
+        pub language: String,
+        pub language_full: String,
+        pub version: Option<Value>,
+        pub total_size: i64,
+        pub files: Vec<File>,
+    }
+    /// A specific downloadable file
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct File {
+        pub id: String,
+        pub size: i64,
+        pub downlink: String,
+    }
+    /// Descriptions of a game
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Description {
+        pub lead: String,
+        pub full: String,
+        pub whats_cool_about_it: String,
+    }
+    /// A specific developer-provided screenshot
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Screenshot {
+        pub image_id: String,
+        pub formatter_template_url: String,
+        pub formatted_images: Vec<FormattedImage>,
+    }
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct FormattedImage {
+        pub formatter_name: String,
+        pub image_url: String,
     }
 }
 /// An user's avatar urls
@@ -319,4 +424,3 @@ pub struct Wishlist {
     pub wishlist: GMap<String, bool>,
     pub checksum: String,
 }
-
