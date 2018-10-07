@@ -6,6 +6,10 @@ use serde::Deserializer;
 use serde::de::Deserialize;
 use std::fmt;
 use containers::*;
+use std::marker::PhantomData;
+use serde::de::{Visitor, MapAccess};
+use std::collections::{btree_map, BTreeMap};
+type GMap<K, V> = BTreeMap<K,V>;
 /// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
@@ -32,14 +36,14 @@ pub enum Currency {
     CHF,
     NOK,
     SEK,
-    DKK
+    DKK,
 }
 impl fmt::Display for Currency {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-/// Available languages 
+/// Available languages
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Language {
     /// en-US
@@ -53,11 +57,11 @@ pub enum Language {
     /// de-DE
     DE,
     /// zh-HANS
-    ZH
+    ZH,
 }
 impl fmt::Display for Language {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let res = match(&self) {
+        let res = match (&self) {
             ENUS => "en-US",
             FR => "fr-FR",
             PTBR => "pt-BR",
@@ -65,7 +69,7 @@ impl fmt::Display for Language {
             DE => "de-DE",
             ZH => "zh-HANS",
             // Sorry
-            _ => "en-US"
+            _ => "en-US",
         };
         write!(f, "{}", res)
     }
@@ -101,16 +105,61 @@ pub mod status {
         pub is_chat_restricted: bool,
     }
 }
+/// GOG Connect-related structs
+pub mod connect {
+    use gog::GMap;
+    use serde_json::value::{Map, Value};    
+    /// A GOG Connect-linked steam account
+    #[derive(Serialize, Deserialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub struct LinkedSteam {
+        pub href: String,
+        pub user: SteamUser,
+        pub exchangable_steam_products: String,
+    }
+    /// Actual info on the steam account
+    #[derive(Serialize, Deserialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub struct SteamUser {
+        pub status: String,
+        pub gog_username: String,
+        pub gog_avatar: String,
+        pub steam_username: String,
+        pub steam_avatar: String,
+    }
+    /// GOG Connect games status. Items' key is a gameid.
+    #[derive(Serialize, Deserialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub struct ConnectStatus {
+        pub href: String,
+        pub items: GMap<String, ConnectGame>,
+    }
+    ///A GOG Connect game
+    #[derive(Serialize, Deserialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub struct ConnectGame {
+        pub id: i64,
+        pub status: ConnectGameStatus,
+    }
+    /// The status of a GOG Connect game
+    #[derive(Serialize, Deserialize, Debug)]
+    #[serde(rename_all = "camelCase")]
+    pub enum ConnectGameStatus {
+        IMPORTED,
+        READY_TO_LINK,
+        UNAVAILABLE,
+    }
+}
 /// An user's avatar urls
-#[derive(Serialize, Deserialize, Debug)] 
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Avatars {
-    pub small:String,
-    pub small2x:String,
-    pub medium:String,
-    pub medium2x:String,
-    pub large:String,
-    pub large2x: String
+    pub small: String,
+    pub small2x: String,
+    pub medium: String,
+    pub medium2x: String,
+    pub large: String,
+    pub large2x: String,
 }
 use status::*;
 ///Data on the currently logged-in user
@@ -210,7 +259,7 @@ pub struct PubInfo {
 #[serde(rename_all = "camelCase")]
 pub struct GameDetails {
     pub title: String,
-    pub background_image : String,
+    pub background_image: String,
     pub cd_key: Option<String>,
     pub text_information: String,
     pub downloads: Downloads,
@@ -223,7 +272,7 @@ pub struct GameDetails {
     pub changelog: Option<String>,
     pub forum_link: String,
     pub is_base_product_missing: bool,
-    pub missing_base_product: Option<Value>
+    pub missing_base_product: Option<Value>,
 }
 /// An extra that comes with a game, like wallpapers or soundtrack
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -233,9 +282,9 @@ pub struct Extra {
     pub downloader_url: String,
     pub name: String,
     #[serde(rename = "type")]
-    pub type_e:String,
+    pub type_e: String,
     pub info: i64,
-    pub size: String
+    pub size: String,
 }
 /// A 'tag' on a game like Favorite
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -243,14 +292,14 @@ pub struct Extra {
 pub struct Tag {
     pub id: String,
     pub name: String,
-    pub product_count: String
+    pub product_count: String,
 }
 /// A set of builds for a game for different OSes
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Downloads {
     pub windows: Option<Vec<Download>>,
     pub mac: Option<Vec<Download>>,
-    pub linux: Option<Vec<Download>>
+    pub linux: Option<Vec<Download>>,
 }
 /// Information on an available build of a game
 #[derive(Serialize, Deserialize, Debug)]
@@ -258,15 +307,16 @@ pub struct Downloads {
 pub struct Download {
     pub manual_url: String,
     pub downloader_url: String,
-    pub name : String,
+    pub name: String,
     pub version: Option<String>,
     pub date: String,
-    pub size: String
+    pub size: String,
 }
 /// A user's wishlist
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Wishlist {
     /// Keys in wishlist are the game ids of wishlisted games
-    pub wishlist: Map<String, Value>,
-    pub checksum: String
+    pub wishlist: GMap<String, bool>,
+    pub checksum: String,
 }
+
