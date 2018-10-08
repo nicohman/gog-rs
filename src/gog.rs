@@ -322,6 +322,7 @@ pub struct Updates {
 pub enum ErrorType {
     Gog,
     Req,
+    RefreshToken
 }
 ///An Error from an API Call. Can either be an error on reqwest's side, or Gog
 #[derive(Debug)]

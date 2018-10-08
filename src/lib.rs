@@ -45,13 +45,7 @@ impl Gog {
         Gog::from_token(token)
     }
     fn from_token(token: Token) -> Gog {
-        let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            ("Bearer ".to_string() + &token.access_token)
-                .parse()
-                .unwrap(),
-        );
+        let mut headers = Gog::headers_token(&token.access_token);
         let mut client = Client::builder();
         client = client.default_headers(headers);
         return Gog {
@@ -59,26 +53,56 @@ impl Gog {
             client: client.build().unwrap(),
         };
     }
+    fn update_token(&mut self, token: Token) {
+        let mut headers = Gog::headers_token(&token.access_token);
+        let mut client = Client::builder();
+        self.client = client.default_headers(headers).build().unwrap();
+        self.token = token;
+    }
+    fn headers_token(at: &str) -> reqwest::header::HeaderMap {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            "Authorization",
+            ("Bearer ".to_string() + at).parse().unwrap(),
+        );
+        return headers;
+    }
     fn rreq(
         &self,
         method: Method,
         domain: &str,
         path: &str,
         params: Option<Map<String, Value>>,
-    ) -> Result<Response, reqwest::Error> {
-        let mut url = domain.to_string() + path;
-        if params.is_some() {
-            let params = params.unwrap();
-            if params.len() > 0 {
-                url = url + "?";
-                for (k, v) in params.iter() {
-                    url = url + k + "=" + &v.to_string() + "&";
+    ) -> Result<Response, Error> {
+        if self.token.is_expired() {
+            return Err(Error {
+                etype: RefreshToken,
+                error: None,
+                msg: None,
+            });
+        } else {
+            let mut url = domain.to_string() + path;
+            if params.is_some() {
+                let params = params.unwrap();
+                if params.len() > 0 {
+                    url = url + "?";
+                    for (k, v) in params.iter() {
+                        url = url + k + "=" + &v.to_string() + "&";
+                    }
+                    url.pop();
                 }
-                url.pop();
+            }
+            let res = self.client.request(method, &url).send();
+            if res.is_err() {
+                return Err(Error {
+                    etype: Req,
+                    error: Some(res.err().unwrap()),
+                    msg: None,
+                });
+            } else {
+                return Ok(res.unwrap());
             }
         }
-        let res = self.client.request(method, &url).send();
-        return res;
     }
     fn fget<T>(
         &self,
@@ -115,11 +139,7 @@ impl Gog {
     {
         let res = self.rreq(method, domain, path, params);
         if res.is_err() {
-            return Err(Error {
-                etype: Req,
-                error: Some(res.err().unwrap()),
-                msg: None,
-            });
+            return Err(res.err().unwrap());
         } else {
             let st = res.unwrap().text().unwrap();
             let try: Result<T, serde_json::Error> = serde_json::from_str(&st);
