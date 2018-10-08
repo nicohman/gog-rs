@@ -294,6 +294,9 @@ impl Gog {
         r
 
     }
+    pub fn achievements(&self, product_id: i64, user_id: i64) -> Result<AchievementList, Error> {
+        self.fget(GPLAY, &("/clients/".to_string()+&product_id.to_string()+"/users/"+&user_id.to_string()+"/achievements"), None)
+    }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
     return Ok(acc + "," + now);

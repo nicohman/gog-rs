@@ -424,3 +424,19 @@ pub struct Wishlist {
     pub wishlist: GMap<String, bool>,
     pub checksum: String,
 }
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AchievementList {
+    pub total_count: i32,
+    pub items: Vec<Achievement>
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Achievement {
+    pub achievement_id: String,
+    pub achievement_key: String,
+    pub visible: bool,
+    pub name: String,
+    pub description: String,
+    pub image_url_unlocked: String,
+    pub image_url_locked: String,
+    pub date_unlocked:Option<String>
+}
