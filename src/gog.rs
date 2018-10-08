@@ -424,19 +424,25 @@ pub struct Wishlist {
     pub wishlist: GMap<String, bool>,
     pub checksum: String,
 }
+/// A list of achivements from GOG
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AchievementList {
     pub total_count: i32,
     pub items: Vec<Achievement>
 }
+/// A GOG Galaxy Achievement
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Achievement {
     pub achievement_id: String,
     pub achievement_key: String,
     pub visible: bool,
-    pub name: String,
+    pub name: String, 
     pub description: String,
     pub image_url_unlocked: String,
     pub image_url_locked: String,
     pub date_unlocked:Option<String>
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Success {
+    pub success : bool
 }

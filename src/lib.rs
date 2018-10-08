@@ -5,24 +5,24 @@
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-extern crate serde;
 extern crate reqwest;
-/// Module for OAuth token stuff
-pub mod token;
+extern crate serde;
+mod containers;
 /// Module for GOG structs and responses
 pub mod gog;
-mod containers;
-use containers::*;
-use gog::*;
-use domains::*;
+/// Module for OAuth token stuff
+pub mod token;
 use connect::*;
+use containers::*;
+use domains::*;
+use gog::*;
 use product::*;
-use ErrorType::*;
-use token::Token;
-use serde_json::value::{Map, Value};
 use reqwest::{Client, Method, Response};
-use std::result::Result;
 use serde::de::DeserializeOwned;
+use serde_json::value::{Map, Value};
+use std::result::Result;
+use token::Token;
+use ErrorType::*;
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
 macro_rules! map_p {
@@ -162,8 +162,7 @@ impl Gog {
     pub fn get_game_details(&self, game_id: i64) -> Result<GameDetails, Error> {
         let r: Result<GameDetailsP, Error> = self.fget(
             EMBD,
-            &("/account/gameDetails/".to_string() +
-                  &game_id.to_string() + ".json"),
+            &("/account/gameDetails/".to_string() + &game_id.to_string() + ".json"),
             None,
         );
         if r.is_ok() {
@@ -180,17 +179,13 @@ impl Gog {
     /// Hides a product from your library
     pub fn hide_product(&self, game_id: i64) {
         self.client
-            .get(
-                &(EMBD.to_string() + "/account/hideProduct/" + &game_id.to_string()),
-            )
+            .get(&(EMBD.to_string() + "/account/hideProduct/" + &game_id.to_string()))
             .send();
     }
     /// Reveals a product in your library
     pub fn reveal_product(&self, game_id: i64) {
         self.client
-            .get(
-                &(EMBD.to_string() + "/account/revealProduct" + &game_id.to_string()),
-            )
+            .get(&(EMBD.to_string() + "/account/revealProduct" + &game_id.to_string()))
             .send();
     }
     /// Gets the wishlist of the current user
@@ -229,18 +224,14 @@ impl Gog {
     /// ones in the currency enum.
     pub fn save_currency(&self, currency: Currency) {
         self.client
-            .get(
-                &(EMBD.to_string() + "/user/changeCurrency/" + &currency.to_string()),
-            )
+            .get(&(EMBD.to_string() + "/user/changeCurrency/" + &currency.to_string()))
             .send();
     }
     /// Changes default language. Possible languages are available as constants in the langauge
     /// enum.
     pub fn save_language(&self, language: Language) {
         self.client
-            .get(
-                &(EMBD.to_string() + "/user/changeLanguage/" + &language.to_string()),
-            )
+            .get(&(EMBD.to_string() + "/user/changeLanguage/" + &language.to_string()))
             .send();
     }
     /// Gets info about the steam account linked to GOG Connect for the user id
@@ -255,8 +246,9 @@ impl Gog {
     pub fn connect_status(&self, user_id: i64) -> Result<ConnectStatus, Error> {
         self.fget(
             EMBD,
-            &("/api/v1/users/".to_string() + &user_id.to_string() +
-                  "/gogLink/steam/exchangeableProducts"),
+            &("/api/v1/users/".to_string()
+                + &user_id.to_string()
+                + "/gogLink/steam/exchangeableProducts"),
             None,
         )
     }
@@ -264,8 +256,10 @@ impl Gog {
     pub fn connect_scan(&self, user_id: i64) {
         self.client
             .get(
-                &(EMBD.to_string() + "/api/v1/users/" + &user_id.to_string() +
-                      "/gogLink/steam/synchronizeUserProfile"),
+                &(EMBD.to_string()
+                    + "/api/v1/users/"
+                    + &user_id.to_string()
+                    + "/gogLink/steam/synchronizeUserProfile"),
             )
             .send();
     }
@@ -273,8 +267,10 @@ impl Gog {
     pub fn connect_claim(&self, user_id: i64) {
         self.client
             .get(
-                &(EMBD.to_string() + "/api/v1/users/" + &user_id.to_string() +
-                      "/gogLink/steam/claimProducts"),
+                &(EMBD.to_string()
+                    + "/api/v1/users/"
+                    + &user_id.to_string()
+                    + "/gogLink/steam/claimProducts"),
             )
             .send();
     }
@@ -292,10 +288,42 @@ impl Gog {
         }),
         );
         r
-
     }
+    /// Get a list of achievements for a game and user id
     pub fn achievements(&self, product_id: i64, user_id: i64) -> Result<AchievementList, Error> {
-        self.fget(GPLAY, &("/clients/".to_string()+&product_id.to_string()+"/users/"+&user_id.to_string()+"/achievements"), None)
+        self.fget(
+            GPLAY,
+            &("/clients/".to_string()
+                + &product_id.to_string()
+                + "/users/"
+                + &user_id.to_string()
+                + "/achievements"),
+            None,
+        )
+    }
+    /// Adds tag with tagid to product
+    pub fn add_tag(&self, product_id: i64, tag_id: i64) -> Result<bool, Error> {
+        let res: Result<Success, Error> = self.fget(
+            EMBD,
+            "/account/tags/attach",
+            map_p!({
+            "product_id":product_id,
+            "tag_id":tag_id
+        }),
+        );
+        res.map(|x| x.success)
+    }
+    /// Removes tag with tagid from product
+    pub fn rm_tag(&self, product_id: i64, tag_id: i64) -> Result<bool, Error> {
+        let res: Result<Success, Error> = self.fget(
+            EMBD,
+            "/account/tags/detach",
+            map_p!({
+            "product_id":product_id,
+            "tag_id":tag_id
+        }),
+        );
+        res.map(|x| x.success)
     }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
