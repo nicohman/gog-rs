@@ -345,6 +345,26 @@ impl Gog {
         );
         res.map(|x| x.success)
     }
+    /// Creates a new tag. Returns the tag's id
+    pub fn create_tag(&self, name: &str) -> Result<i64, Error> {
+        let res : Result<Id, Error> = self.fget(EMBD, "/account/tags/add", map_p!({
+            "name": name
+        }));
+        res.map(|x| x.id.parse::<i64>().unwrap())
+    }
+    /// Deletes a tag. Returns bool indicating success
+    pub fn delete_tag(&self, tag_id: i64) -> Result<bool, Error> {
+        let res : Result<StatusDel, Error> = self.fget(EMBD, "/account/tags/delete", map_p!({
+            "tag_id":tag_id
+        }));
+        res.map(|x| {
+            if x.status.as_str() == "deleted" {
+                return true;
+            } else {
+                return false;
+            }
+        })
+    }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
     return Ok(acc + "," + now);

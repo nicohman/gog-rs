@@ -51,3 +51,15 @@ impl GameDetailsP {
         };
     }
 }
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Success {
+    pub success : bool
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Id {
+    pub id: String
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StatusDel {
+    pub status: String
+}

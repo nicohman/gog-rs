@@ -443,7 +443,4 @@ pub struct Achievement {
     pub image_url_locked: String,
     pub date_unlocked:Option<String>
 }
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Success {
-    pub success : bool
-}
+
