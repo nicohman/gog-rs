@@ -273,26 +273,12 @@ impl Gog {
         )
     }
     /// Scans Connect for claimable games
-    pub fn connect_scan(&self, user_id: i64) {
-        self.client
-            .get(
-                &(EMBD.to_string()
-                    + "/api/v1/users/"
-                    + &user_id.to_string()
-                    + "/gogLink/steam/synchronizeUserProfile"),
-            )
-            .send();
+    pub fn connect_scan(&self, user_id: i64) -> Result<Response, Error> {
+        self.rreq(GET, EMBD, &("/api/v1/users/".to_string() + &user_id.to_string()+ "/gogLink/steam/synchronizeUserProfile"), None)
     }
     /// Claims all available Connect games
-    pub fn connect_claim(&self, user_id: i64) {
-        self.client
-            .get(
-                &(EMBD.to_string()
-                    + "/api/v1/users/"
-                    + &user_id.to_string()
-                    + "/gogLink/steam/claimProducts"),
-            )
-            .send();
+    pub fn connect_claim(&self, user_id: i64) -> Result<Response, Error> {
+        self.rreq(GET, EMBD, &("/api/v1/users/".to_string()+ &user_id.to_string() + "/gogLink/steam/claimProducts"), None)
     }
     /// Returns detailed info about a product/products.
     pub fn product(&self, ids: Vec<i64>, expand: Vec<String>) -> Result<Vec<Product>, Error> {
