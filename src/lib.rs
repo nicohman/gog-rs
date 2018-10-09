@@ -347,16 +347,13 @@ impl Gog {
     }
     /// Creates a new tag. Returns the tag's id
     pub fn create_tag(&self, name: &str) -> Result<i64, Error> {
-        let res : Result<Id, Error> = self.fget(EMBD, "/account/tags/add", map_p!({
-            "name": name
-        }));
+        let res: Result<Id, Error> = self.fget(EMBD, "/account/tags/add", map_p!({ "name": name }));
         res.map(|x| x.id.parse::<i64>().unwrap())
     }
     /// Deletes a tag. Returns bool indicating success
     pub fn delete_tag(&self, tag_id: i64) -> Result<bool, Error> {
-        let res : Result<StatusDel, Error> = self.fget(EMBD, "/account/tags/delete", map_p!({
-            "tag_id":tag_id
-        }));
+        let res: Result<StatusDel, Error> =
+            self.fget(EMBD, "/account/tags/delete", map_p!({ "tag_id": tag_id }));
         res.map(|x| {
             if x.status.as_str() == "deleted" {
                 return true;
@@ -365,7 +362,46 @@ impl Gog {
             }
         })
     }
+    /// Changes newsletter subscription status
+    pub fn newsletter_subscription(&self, enabled: bool) -> Result<Response, Error> {
+        self.rreq(
+            GET,
+            EMBD,
+            &("/account/save_newsletter_subscription/".to_string()
+                + &bool_to_int(enabled).to_string()),
+            None,
+        )
+    }
+    /// Changes promo subscription status
+    pub fn promo_subscription(&self, enabled: bool) -> Result<Response, Error> {
+        self.rreq(
+            GET,
+            EMBD,
+            &("/account/save_promo_subscription/".to_string() + &bool_to_int(enabled).to_string()),
+            None,
+        )
+    }
+    /// Changes wishlist subscription status
+    pub fn wishlist_subscription(&self, enabled: bool) -> Result<Response, Error> {
+        self.rreq(
+            GET,
+            EMBD,
+            &("/account/save_wishlist_notification/".to_string() + &bool_to_int(enabled).to_string()),
+            None,
+        )
+    }
+    /// Shortcut function to enable or disable all subscriptions
+    pub fn all_subscription(&self, enabled:bool) -> Vec<Result<Response, Error>> {
+        vec![self.newsletter_subscription(enabled),self.promo_subscription(enabled),self.wishlist_subscription(enabled)]
+    }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
     return Ok(acc + "," + now);
+}
+fn bool_to_int(b: bool) -> i32 {
+    let mut par = 0;
+    if b {
+        par = 1;
+    }
+    return par;
 }
