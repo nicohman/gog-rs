@@ -19,5 +19,6 @@ fn get_token() {
     println!("{:?}:", gog.rm_wishlist(1096313866).unwrap());
     let exp_game : Vec<String> = vec!["downloads".to_string(),"description".to_string(),"screenshots".to_string(),"related_products".to_string()];
     println!("{:?}", gog.product(vec![1452598881,1096313866], exp_game).unwrap());
+    println!("{:?}", gog.game_ratings().unwrap());
 }
 

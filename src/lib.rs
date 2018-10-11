@@ -326,8 +326,7 @@ impl Gog {
     }
     /// Creates a new tag. Returns the tag's id
     pub fn create_tag(&self, name: &str) -> Result<i64, Error> {
-        let res: Result<Id, Error> = self.fget(EMBD, "/account/tags/add", map_p!({ "name": name }));
-        res.map(|x| x.id.parse::<i64>().unwrap())
+        return self.nfget(EMBD, "/account/tags/add", map_p!({ "name": name }), "id").map(|x: String| x.parse::<i64>().unwrap());
     }
     /// Deletes a tag. Returns bool indicating success
     pub fn delete_tag(&self, tag_id: i64) -> Result<bool, Error> {
@@ -369,6 +368,37 @@ impl Gog {
     /// Shortcut function to enable or disable all subscriptions
     pub fn all_subscription(&self, enabled:bool) -> Vec<EmptyResponse> {
         vec![self.newsletter_subscription(enabled),self.promo_subscription(enabled),self.wishlist_subscription(enabled)]
+    }
+    /// Gets games this user has rated
+    pub fn game_ratings(&self) -> Result<Vec<(String, i64)>, Error> {
+        let g : Result<Map<String, Value>, Error> = self.nfget(EMBD,"/user/games_rating.json", None, "games_rating");
+        if g.is_ok() {
+            return Ok(g.unwrap().iter().map(|x| return (x.0.to_owned(), x.1.as_i64().unwrap())).collect::<Vec<(String, i64)>>());
+
+        } else {
+            return Err(g.err().unwrap());
+        }
+    }
+    /// Gets reviews the user has voted on
+    pub fn voted_reviews(&self) -> Result<Vec<i64>, Error> {
+        return self.nfget(EMBD, "/user/review_votes.json", None, "reviews");
+    }
+    fn nfget<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T, Error> where T: DeserializeOwned {
+        let r : Result<Map<String, Value>, Error> = self.fget(domain, path, params);
+        if r.is_err() {
+            return Err(r.err().unwrap());
+        } else {
+            let r = r.unwrap();
+            if r.contains_key(nested) {
+                return Ok(serde_json::from_str(&r.get(nested).unwrap().to_string()).unwrap());
+            } else {
+                return Err(Error {
+                    etype: Gog,
+                    msg: Some("Missing field ".to_string()+nested),
+                    error: None
+                });
+            }
+        }
     }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
