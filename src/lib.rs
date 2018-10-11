@@ -25,6 +25,8 @@ use token::Token;
 use ErrorType::*;
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
+/// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
+pub type EmptyResponse = ::std::result::Result<Response, Error>;
 macro_rules! map_p {
     ($($js: tt)+) => {
         Some(json!($($js)+).as_object().unwrap().clone())
@@ -66,6 +68,9 @@ impl Gog {
             ("Bearer ".to_string() + at).parse().unwrap(),
         );
         return headers;
+    }
+    fn rget(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<Response, Error> {
+        self.rreq(GET, domain, path, params)
     }
     fn rreq(
         &self,
@@ -197,16 +202,12 @@ impl Gog {
         }
     }
     /// Hides a product from your library
-    pub fn hide_product(&self, game_id: i64) {
-        self.client
-            .get(&(EMBD.to_string() + "/account/hideProduct/" + &game_id.to_string()))
-            .send();
+    pub fn hide_product(&self, game_id: i64) -> EmptyResponse {
+        self.rget(EMBD, &("/account/hideProduct".to_string()+&game_id.to_string()), None)
     }
     /// Reveals a product in your library
-    pub fn reveal_product(&self, game_id: i64) {
-        self.client
-            .get(&(EMBD.to_string() + "/account/revealProduct" + &game_id.to_string()))
-            .send();
+    pub fn reveal_product(&self, game_id: i64) -> EmptyResponse {
+        self.rget(EMBD, &("/account/revealProduct".to_string()+&game_id.to_string()), None)
     }
     /// Gets the wishlist of the current user
     pub fn wishlist(&self) -> Result<Wishlist, Error> {
@@ -229,30 +230,22 @@ impl Gog {
         )
     }
     /// Sets birthday of account. Date should be in ISO 8601 format
-    pub fn save_birthday(&self, bday: &str) {
-        self.client
-            .get(&(EMBD.to_string() + "/account/save_birthday/" + bday))
-            .send();
+    pub fn save_birthday(&self, bday: &str) -> EmptyResponse {
+        self.rget(EMBD, &("/account/save_birthday".to_string()+bday), None)
     }
     /// Sets country of account. Country should be in ISO 3166 format
-    pub fn save_country(&self, country: &str) {
-        self.client
-            .get(&(EMBD.to_string() + "/account/save_country/" + country))
-            .send();
+    pub fn save_country(&self, country: &str) -> EmptyResponse {
+        self.rget(EMBD, &("/account/save_country".to_string()+country),None)
     }
     /// Changes default currency. Currency is in ISO 4217 format. Only currencies supported are
     /// ones in the currency enum.
-    pub fn save_currency(&self, currency: Currency) {
-        self.client
-            .get(&(EMBD.to_string() + "/user/changeCurrency/" + &currency.to_string()))
-            .send();
+    pub fn save_currency(&self, currency: Currency) -> EmptyResponse {
+        self.rget(EMBD, &("/user/changeCurrency".to_string()+&currency.to_string()), None)
     }
     /// Changes default language. Possible languages are available as constants in the langauge
     /// enum.
-    pub fn save_language(&self, language: Language) {
-        self.client
-            .get(&(EMBD.to_string() + "/user/changeLanguage/" + &language.to_string()))
-            .send();
+    pub fn save_language(&self, language: Language) -> EmptyResponse {
+        self.rget(EMBD, &("/user/changeLanguage".to_string()+&language.to_string()), None)
     }
     /// Gets info about the steam account linked to GOG Connect for the user id
     pub fn connect_account(&self, user_id: i64) -> Result<LinkedSteam, Error> {
@@ -273,12 +266,12 @@ impl Gog {
         )
     }
     /// Scans Connect for claimable games
-    pub fn connect_scan(&self, user_id: i64) -> Result<Response, Error> {
-        self.rreq(GET, EMBD, &("/api/v1/users/".to_string() + &user_id.to_string()+ "/gogLink/steam/synchronizeUserProfile"), None)
+    pub fn connect_scan(&self, user_id: i64) -> EmptyResponse {
+        self.rget(EMBD, &("/api/v1/users/".to_string() + &user_id.to_string()+ "/gogLink/steam/synchronizeUserProfile"), None)
     }
     /// Claims all available Connect games
-    pub fn connect_claim(&self, user_id: i64) -> Result<Response, Error> {
-        self.rreq(GET, EMBD, &("/api/v1/users/".to_string()+ &user_id.to_string() + "/gogLink/steam/claimProducts"), None)
+    pub fn connect_claim(&self, user_id: i64) -> EmptyResponse {
+        self.rget(EMBD, &("/api/v1/users/".to_string()+ &user_id.to_string() + "/gogLink/steam/claimProducts"), None)
     }
     /// Returns detailed info about a product/products.
     pub fn product(&self, ids: Vec<i64>, expand: Vec<String>) -> Result<Vec<Product>, Error> {
@@ -349,9 +342,8 @@ impl Gog {
         })
     }
     /// Changes newsletter subscription status
-    pub fn newsletter_subscription(&self, enabled: bool) -> Result<Response, Error> {
-        self.rreq(
-            GET,
+    pub fn newsletter_subscription(&self, enabled: bool) -> EmptyResponse {
+        self.rget(
             EMBD,
             &("/account/save_newsletter_subscription/".to_string()
                 + &bool_to_int(enabled).to_string()),
@@ -359,25 +351,23 @@ impl Gog {
         )
     }
     /// Changes promo subscription status
-    pub fn promo_subscription(&self, enabled: bool) -> Result<Response, Error> {
-        self.rreq(
-            GET,
+    pub fn promo_subscription(&self, enabled: bool) -> EmptyResponse {
+        self.rget(
             EMBD,
             &("/account/save_promo_subscription/".to_string() + &bool_to_int(enabled).to_string()),
             None,
         )
     }
     /// Changes wishlist subscription status
-    pub fn wishlist_subscription(&self, enabled: bool) -> Result<Response, Error> {
-        self.rreq(
-            GET,
+    pub fn wishlist_subscription(&self, enabled: bool) -> EmptyResponse {
+        self.rget(
             EMBD,
             &("/account/save_wishlist_notification/".to_string() + &bool_to_int(enabled).to_string()),
             None,
         )
     }
     /// Shortcut function to enable or disable all subscriptions
-    pub fn all_subscription(&self, enabled:bool) -> Vec<Result<Response, Error>> {
+    pub fn all_subscription(&self, enabled:bool) -> Vec<EmptyResponse> {
         vec![self.newsletter_subscription(enabled),self.promo_subscription(enabled),self.wishlist_subscription(enabled)]
     }
 }
