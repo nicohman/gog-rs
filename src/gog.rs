@@ -59,6 +59,28 @@ pub enum Language {
     /// zh-HANS
     ZH,
 }
+/// Shelf background styles
+pub enum ShelfBackground {
+    Wood,
+    Mate_Black,
+    Glass,
+    Chrome,
+    White,
+    Piano_Black
+}
+impl ShelfBackground {
+    pub fn as_str(&self) -> &str {
+        use ShelfBackground::*;
+        match &self {
+            Wood => "wood",
+            Mate_Black => "mate_black",
+            Glass => "glass",
+            Chrome => "chrome",
+            White => "white",
+            Piano_Black => "piano_black"
+        }
+    }
+}
 impl fmt::Display for Language {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let res = match (&self) {

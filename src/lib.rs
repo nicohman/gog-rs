@@ -74,6 +74,9 @@ impl Gog {
     fn rget(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<Response> {
         self.rreq(GET, domain, path, params)
     }
+    fn rpost(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<Response> {
+        self.rreq(POST, domain, path, params)
+    }
     fn rreq(
         &self,
         method: Method,
@@ -161,6 +164,31 @@ impl Gog {
             }
         }
     }
+    fn nfreq<T>(&self, method:Method, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T> where T: DeserializeOwned {
+            let r : Result<Map<String, Value>> = self.freq(method, domain, path, params);
+        if r.is_err() {
+            return Err(r.err().unwrap());
+        } else {
+            let r = r.unwrap();
+            if r.contains_key(nested) {
+                return Ok(serde_json::from_str(&r.get(nested).unwrap().to_string()).unwrap());
+            } else {
+                return Err(Error {
+                    etype: Gog,
+                    msg: Some("Missing field ".to_string()+nested),
+                    error: None
+                });
+            }
+        }
+
+    }
+    fn nfget<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T> where T: DeserializeOwned {
+        self.nfreq(GET, domain, path, params, nested)
+    }
+    fn nfpost<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T> where T: DeserializeOwned {
+        self.nfreq(POST, domain, path, params, nested)
+    }
+
     /// Gets the data of the user that is currently logged in
     pub fn get_user_data(&self) -> Result<UserData> {
         self.fget(EMBD, "/userData.json", None)
@@ -384,22 +412,13 @@ impl Gog {
     pub fn voted_reviews(&self) -> Result<Vec<i64>> {
         return self.nfget(EMBD, "/user/review_votes.json", None, "reviews");
     }
-    fn nfget<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T> where T: DeserializeOwned {
-        let r : Result<Map<String, Value>> = self.fget(domain, path, params);
-        if r.is_err() {
-            return Err(r.err().unwrap());
-        } else {
-            let r = r.unwrap();
-            if r.contains_key(nested) {
-                return Ok(serde_json::from_str(&r.get(nested).unwrap().to_string()).unwrap());
-            } else {
-                return Err(Error {
-                    etype: Gog,
-                    msg: Some("Missing field ".to_string()+nested),
-                    error: None
-                });
-            }
-        }
+    /// Reports a review
+    pub fn report_review(&self, review_id: i32) -> Result<bool> {
+        self.nfpost(EMBD, &("/reviews/report/review/".to_string()+&review_id.to_string()+".json"), None, "reported")
+    }
+    /// Sets library background style
+    pub fn library_background(&self, bg: ShelfBackground) -> EmptyResponse {
+       self.rpost(EMBD, &("/account/save_shelf_background/".to_string() +bg.as_str()), None)
     }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String> {
