@@ -20,13 +20,15 @@ use product::*;
 use reqwest::{Client, Method, Response};
 use serde::de::DeserializeOwned;
 use serde_json::value::{Map, Value};
-use std::result::Result;
 use token::Token;
 use ErrorType::*;
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
 /// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
 pub type EmptyResponse = ::std::result::Result<Response, Error>;
+type NResult<T, E> = ::std::result::Result<T, E>;
+/// An alias for a result with an error type of gog::Error
+pub type Result<T> = ::std::result::Result<T, Error>;
 macro_rules! map_p {
     ($($js: tt)+) => {
         Some(json!($($js)+).as_object().unwrap().clone())
@@ -69,7 +71,7 @@ impl Gog {
         );
         return headers;
     }
-    fn rget(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<Response, Error> {
+    fn rget(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<Response> {
         self.rreq(GET, domain, path, params)
     }
     fn rreq(
@@ -78,7 +80,7 @@ impl Gog {
         domain: &str,
         path: &str,
         params: Option<Map<String, Value>>,
-    ) -> Result<Response, Error> {
+    ) -> Result<Response> {
         if self.token.is_expired() {
             return Err(Error {
                 etype: RefreshToken,
@@ -114,7 +116,7 @@ impl Gog {
         domain: &str,
         path: &str,
         params: Option<Map<String, Value>>,
-    ) -> Result<T, Error>
+    ) -> Result<T>
     where
         T: DeserializeOwned,
     {
@@ -125,7 +127,7 @@ impl Gog {
         domain: &str,
         path: &str,
         params: Option<Map<String, Value>>,
-    ) -> Result<T, Error>
+    ) -> Result<T>
     where
         T: DeserializeOwned,
     {
@@ -138,7 +140,7 @@ impl Gog {
         domain: &str,
         path: &str,
         params: Option<Map<String, Value>>,
-    ) -> Result<T, Error>
+    ) -> Result<T>
     where
         T: DeserializeOwned,
     {
@@ -147,7 +149,7 @@ impl Gog {
             return Err(res.err().unwrap());
         } else {
             let st = res.unwrap().text().unwrap();
-            let try: Result<T, serde_json::Error> = serde_json::from_str(&st);
+            let try: NResult<T, serde_json::Error> = serde_json::from_str(&st);
             if try.is_ok() {
                 return Ok(try.unwrap());
             } else {
@@ -160,12 +162,12 @@ impl Gog {
         }
     }
     /// Gets the data of the user that is currently logged in
-    pub fn get_user_data(&self) -> Result<UserData, Error> {
+    pub fn get_user_data(&self) -> Result<UserData> {
         self.fget(EMBD, "/userData.json", None)
     }
     /// Gets any publically available data about a user
-    pub fn get_pub_info(&self, uid: i64, expand: Vec<String>) -> Result<PubInfo, Error> {
-        let r: Result<PubInfo, Error> = self.fget(
+    pub fn get_pub_info(&self, uid: i64, expand: Vec<String>) -> Result<PubInfo> {
+        let r: Result<PubInfo> = self.fget(
             EMBD,
             &("/users/info/".to_string() + &uid.to_string()),
             map_p!({
@@ -175,8 +177,8 @@ impl Gog {
         r
     }
     /// Gets a user's owned games. Only gameids.
-    pub fn get_games(&self) -> Result<Vec<i64>, Error> {
-        let r: Result<OwnedGames, Error> = self.fget(EMBD, "/user/data/games", None);
+    pub fn get_games(&self) -> Result<Vec<i64>> {
+        let r: Result<OwnedGames> = self.fget(EMBD, "/user/data/games", None);
         if r.is_ok() {
             return Ok(r.unwrap().owned);
         } else {
@@ -184,8 +186,8 @@ impl Gog {
         }
     }
     /// Gets more info about a game by gameid
-    pub fn get_game_details(&self, game_id: i64) -> Result<GameDetails, Error> {
-        let r: Result<GameDetailsP, Error> = self.fget(
+    pub fn get_game_details(&self, game_id: i64) -> Result<GameDetails> {
+        let r: Result<GameDetailsP> = self.fget(
             EMBD,
             &("/account/gameDetails/".to_string() + &game_id.to_string() + ".json"),
             None,
@@ -210,11 +212,11 @@ impl Gog {
         self.rget(EMBD, &("/account/revealProduct".to_string()+&game_id.to_string()), None)
     }
     /// Gets the wishlist of the current user
-    pub fn wishlist(&self) -> Result<Wishlist, Error> {
+    pub fn wishlist(&self) -> Result<Wishlist> {
         self.fget(EMBD, "/user/wishlist.json", None)
     }
     /// Adds an item to the wishlist. Returns wishlist
-    pub fn add_wishlist(&self, game_id: i64) -> Result<Wishlist, Error> {
+    pub fn add_wishlist(&self, game_id: i64) -> Result<Wishlist> {
         self.fget(
             EMBD,
             &("/user/wishlist/add/".to_string() + &game_id.to_string()),
@@ -222,7 +224,7 @@ impl Gog {
         )
     }
     /// Removes an item from wishlist. Returns wishlist
-    pub fn rm_wishlist(&self, game_id: i64) -> Result<Wishlist, Error> {
+    pub fn rm_wishlist(&self, game_id: i64) -> Result<Wishlist> {
         self.fget(
             EMBD,
             &("/user/wishlist/remove/".to_string() + &game_id.to_string()),
@@ -248,7 +250,7 @@ impl Gog {
         self.rget(EMBD, &("/user/changeLanguage".to_string()+&language.to_string()), None)
     }
     /// Gets info about the steam account linked to GOG Connect for the user id
-    pub fn connect_account(&self, user_id: i64) -> Result<LinkedSteam, Error> {
+    pub fn connect_account(&self, user_id: i64) -> Result<LinkedSteam> {
         self.fget(
             EMBD,
             &("/api/v1/users/".to_string() + &user_id.to_string() + "/gogLink/steam/linkedAccount"),
@@ -256,7 +258,7 @@ impl Gog {
         )
     }
     /// Gets claimable status of currently available games on GOG Connect
-    pub fn connect_status(&self, user_id: i64) -> Result<ConnectStatus, Error> {
+    pub fn connect_status(&self, user_id: i64) -> Result<ConnectStatus> {
         self.fget(
             EMBD,
             &("/api/v1/users/".to_string()
@@ -274,14 +276,14 @@ impl Gog {
         self.rget(EMBD, &("/api/v1/users/".to_string()+ &user_id.to_string() + "/gogLink/steam/claimProducts"), None)
     }
     /// Returns detailed info about a product/products.
-    pub fn product(&self, ids: Vec<i64>, expand: Vec<String>) -> Result<Vec<Product>, Error> {
-        let r: Result<Vec<Product>, Error> = self.fget(
+    pub fn product(&self, ids: Vec<i64>, expand: Vec<String>) -> Result<Vec<Product>> {
+        let r: Result<Vec<Product>> = self.fget(
             API,
             "/products",
             map_p!({
             "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap(),
             "ids": ids.iter().try_fold("".to_string(), |acc, x|{
-                let done : Result<String, Error> = Ok(acc +"," +&x.to_string());
+                let done : Result<String> = Ok(acc +"," +&x.to_string());
                 done
             }).unwrap()
         }),
@@ -289,7 +291,7 @@ impl Gog {
         r
     }
     /// Get a list of achievements for a game and user id
-    pub fn achievements(&self, product_id: i64, user_id: i64) -> Result<AchievementList, Error> {
+    pub fn achievements(&self, product_id: i64, user_id: i64) -> Result<AchievementList> {
         self.fget(
             GPLAY,
             &("/clients/".to_string()
@@ -301,8 +303,8 @@ impl Gog {
         )
     }
     /// Adds tag with tagid to product
-    pub fn add_tag(&self, product_id: i64, tag_id: i64) -> Result<bool, Error> {
-        let res: Result<Success, Error> = self.fget(
+    pub fn add_tag(&self, product_id: i64, tag_id: i64) -> Result<bool> {
+        let res: Result<Success> = self.fget(
             EMBD,
             "/account/tags/attach",
             map_p!({
@@ -313,24 +315,23 @@ impl Gog {
         res.map(|x| x.success)
     }
     /// Removes tag with tagid from product
-    pub fn rm_tag(&self, product_id: i64, tag_id: i64) -> Result<bool, Error> {
-        let res: Result<Success, Error> = self.fget(
+    pub fn rm_tag(&self, product_id: i64, tag_id: i64) -> Result<bool> {
+        self.nfget(
             EMBD,
             "/account/tags/detach",
             map_p!({
             "product_id":product_id,
             "tag_id":tag_id
-        }),
-        );
-        res.map(|x| x.success)
+        }),"success"
+        )
     }
     /// Creates a new tag. Returns the tag's id
-    pub fn create_tag(&self, name: &str) -> Result<i64, Error> {
+    pub fn create_tag(&self, name: &str) -> Result<i64> {
         return self.nfget(EMBD, "/account/tags/add", map_p!({ "name": name }), "id").map(|x: String| x.parse::<i64>().unwrap());
     }
     /// Deletes a tag. Returns bool indicating success
-    pub fn delete_tag(&self, tag_id: i64) -> Result<bool, Error> {
-        let res: Result<StatusDel, Error> =
+    pub fn delete_tag(&self, tag_id: i64) -> Result<bool> {
+        let res: Result<StatusDel> =
             self.fget(EMBD, "/account/tags/delete", map_p!({ "tag_id": tag_id }));
         res.map(|x| {
             if x.status.as_str() == "deleted" {
@@ -370,8 +371,8 @@ impl Gog {
         vec![self.newsletter_subscription(enabled),self.promo_subscription(enabled),self.wishlist_subscription(enabled)]
     }
     /// Gets games this user has rated
-    pub fn game_ratings(&self) -> Result<Vec<(String, i64)>, Error> {
-        let g : Result<Map<String, Value>, Error> = self.nfget(EMBD,"/user/games_rating.json", None, "games_rating");
+    pub fn game_ratings(&self) -> Result<Vec<(String, i64)>> {
+        let g : Result<Map<String, Value>> = self.nfget(EMBD,"/user/games_rating.json", None, "games_rating");
         if g.is_ok() {
             return Ok(g.unwrap().iter().map(|x| return (x.0.to_owned(), x.1.as_i64().unwrap())).collect::<Vec<(String, i64)>>());
 
@@ -380,11 +381,11 @@ impl Gog {
         }
     }
     /// Gets reviews the user has voted on
-    pub fn voted_reviews(&self) -> Result<Vec<i64>, Error> {
+    pub fn voted_reviews(&self) -> Result<Vec<i64>> {
         return self.nfget(EMBD, "/user/review_votes.json", None, "reviews");
     }
-    fn nfget<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T, Error> where T: DeserializeOwned {
-        let r : Result<Map<String, Value>, Error> = self.fget(domain, path, params);
+    fn nfget<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T> where T: DeserializeOwned {
+        let r : Result<Map<String, Value>> = self.fget(domain, path, params);
         if r.is_err() {
             return Err(r.err().unwrap());
         } else {
@@ -401,7 +402,7 @@ impl Gog {
         }
     }
 }
-fn fold_mult(acc: String, now: &String) -> Result<String, Error> {
+fn fold_mult(acc: String, now: &String) -> Result<String> {
     return Ok(acc + "," + now);
 }
 fn bool_to_int(b: bool) -> i32 {

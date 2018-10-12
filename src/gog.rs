@@ -346,6 +346,13 @@ impl Error {
             _ => false,
         }
     }
+    /// Checks if the token needs to be refreshed
+    pub fn is_refresh(&self) -> bool {
+        match self.etype {
+            ErrorType::RefreshToken => true,
+            _ => false
+        }
+    }
 }
 /// Publically available info about an user
 #[derive(Serialize, Deserialize, Debug)]
