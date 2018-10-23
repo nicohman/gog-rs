@@ -28,11 +28,14 @@ fn cur_date() -> u64 {
 impl Token {
     /// Creates a token from a response from /token
     pub fn from_response(response: &str) -> Result<Token, Error> {
+        println!("{}",response);
         serde_json::from_str(response)
     }
     /// Fetches a token using a login code
     pub fn from_login_code(code: &str) -> Result<Token, Error> {
-        let res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&code=".to_string()+&code+"&redirect_uri=https://embed.gog.com/on_login_success?origin=client"));
+
+        let res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&code=".to_string()+&code+"&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2"));
+        println!("{:?}",res);
         if res.is_ok() {
             Token::from_response(&res.unwrap().text().unwrap())
         } else {
@@ -45,7 +48,7 @@ impl Token {
         self.updated_at + self.expires_in - cur_date() <= 0
     }
     /// Attempts to fetch an updated token
-    pub fn refresh(&self) -> Result<Token, Error> {
+    pub fn refresh(&mut self) -> Result<Token, Error> {
         let res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token));
         if res.is_ok() {
             let try = serde_json::from_str(&res.unwrap().text().unwrap());
