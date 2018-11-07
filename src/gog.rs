@@ -313,7 +313,7 @@ pub struct CurrencyInfo {
     pub code: Currency,
     pub symbol: String,
 }
-/// Informationn on a language
+/// Information on a language
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LanguageInfo {
     pub code: String,
