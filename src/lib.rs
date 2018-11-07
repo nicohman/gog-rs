@@ -21,6 +21,7 @@ use reqwest::{Client, Method, Response};
 use serde::de::DeserializeOwned;
 use serde_json::value::{Map, Value};
 use token::Token;
+use std::cell::RefCell;
 use ErrorType::*;
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
@@ -36,8 +37,9 @@ macro_rules! map_p {
 }
 /// The main GOG Struct that you'll use to make API calls.
 pub struct Gog {
-    pub token: Token,
-    client: Client,
+    pub token: RefCell<Token>,
+    client: RefCell<Client>,
+    pub auto_update: bool
 }
 impl Gog {
     /// Initializes out of a token from a login code
@@ -53,15 +55,16 @@ impl Gog {
         let mut client = Client::builder();
         client = client.default_headers(headers);
         return Gog {
-            token: token,
-            client: client.build().unwrap(),
+            token: RefCell::new(token),
+            client: RefCell::new(client.build().unwrap()),
+            auto_update: true
         };
     }
-    fn update_token(&mut self, token: Token) {
+    fn update_token(&self, token: Token) {
         let mut headers = Gog::headers_token(&token.access_token);
         let mut client = Client::builder();
-        self.client = client.default_headers(headers).build().unwrap();
-        self.token = token;
+        self.client.replace(client.default_headers(headers).build().unwrap());
+        self.token.replace(token);
     }
     fn headers_token(at: &str) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
@@ -84,12 +87,17 @@ impl Gog {
         path: &str,
         params: Option<Map<String, Value>>,
     ) -> Result<Response> {
-        if self.token.is_expired() {
+        if self.token.borrow().is_expired() {
+            if self.auto_update {
+                self.update_token(self.token.borrow().refresh().unwrap());
+                return self.rreq(method,domain,path,params);
+            } else {
             return Err(Error {
                 etype: RefreshToken,
                 error: None,
                 msg: None,
             });
+        }
         } else {
             let mut url = domain.to_string() + path;
             if params.is_some() {
@@ -102,7 +110,7 @@ impl Gog {
                     url.pop();
                 }
             }
-            let res = self.client.request(method, &url).send();
+            let res = self.client.borrow().request(method, &url).send();
             if res.is_err() {
                 return Err(Error {
                     etype: Req,
