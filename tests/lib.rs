@@ -10,7 +10,8 @@ fn get_gog() -> Gog {
     let mut token_json = String::new();
     File::open(path).unwrap().read_to_string(&mut token_json).unwrap();
     let uri = "auth.gog.com/auth?client_id=46899977096215655&redirect_uri=https://embed.gog.com/on_login_success?origin=client&response_type=code&layout=client2";
-    let token = Token::from_response(&token_json).unwrap();
+    let mut token = Token::from_response(&token_json).unwrap();
+    token = token.refresh().unwrap();
     let mut gog = Gog::new(token);
     gog
 }
