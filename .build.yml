@@ -1,0 +1,21 @@
+image: archlinux
+packages:
+  - cargo
+  - cmake
+secrets:
+  - da25f87c-afb3-4471-9494-2cd0002118ee
+environment:
+  GOG_TOKEN_PATH: /home/build/token.json
+sources:
+  - https://git.sr.ht/~nicohman/gogapi-rs
+tasks:
+  - build: |
+      cd gogapi-rs
+      cargo build
+  - test: |
+      cd gogapi-rs
+      cargo test
+triggers:
+  - action: email
+    condition: failure
+    to: Nico Hickman <nicohman@demenses.net>
