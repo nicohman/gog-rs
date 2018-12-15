@@ -72,6 +72,7 @@ impl Gog {
             "Authorization",
             ("Bearer ".to_string() + at).parse().unwrap(),
         );
+        headers.insert("CSRF", "csrf=true".parse().unwrap());
         return headers;
     }
     fn rget(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<Response> {
