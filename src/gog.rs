@@ -174,7 +174,7 @@ pub mod connect {
 }
 /// Things associated with the /products endpoinnt
 pub mod product {
-    use serde_json::value::{Map, Value};    
+    use serde_json::value::{Map, Value};
     /// The main product struct
     #[derive(Serialize, Deserialize, Debug)]
     pub struct Product {
@@ -339,43 +339,6 @@ pub struct Updates {
     pub forum: Option<i32>,
     pub total: Option<i32>,
 }
-/// The Different types of error
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ErrorType {
-    Gog,
-    Req,
-    RefreshToken
-}
-///An Error from an API Call. Can either be an error on reqwest's side, or Gog
-#[derive(Debug)]
-pub struct Error {
-    pub etype: ErrorType,
-    pub msg: Option<String>,
-    pub error: Option<reqwest::Error>,
-}
-impl Error {
-    /// Checks if an error comes from reqwest
-    pub fn is_req(&self) -> bool {
-        match self.etype {
-            ErrorType::Gog => true,
-            _ => false,
-        }
-    }
-    /// Checks if an error comes from GOG
-    pub fn is_gog(&self) -> bool {
-        match self.etype {
-            ErrorType::Req => true,
-            _ => false,
-        }
-    }
-    /// Checks if the token needs to be refreshed
-    pub fn is_refresh(&self) -> bool {
-        match self.etype {
-            ErrorType::RefreshToken => true,
-            _ => false
-        }
-    }
-}
 /// Publically available info about an user
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -466,10 +429,9 @@ pub struct Achievement {
     pub achievement_id: String,
     pub achievement_key: String,
     pub visible: bool,
-    pub name: String, 
+    pub name: String,
     pub description: String,
     pub image_url_unlocked: String,
     pub image_url_locked: String,
     pub date_unlocked:Option<String>
 }
-

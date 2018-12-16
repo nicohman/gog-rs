@@ -3,6 +3,7 @@ use serde_json::Error;
 use std::process::exit;
 use serde_json;
 use reqwest;
+use error::*;
 /// An OAuth token. Will usually expire after an hour.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Token {
@@ -27,35 +28,22 @@ fn cur_date() -> u64 {
 }
 impl Token {
     /// Creates a token from a response from /token
-    pub fn from_response(response: &str) -> Result<Token, Error> {
+    pub fn from_response(response: &str) -> Result<Token> {
         println!("{}",response);
-        serde_json::from_str(response)
+        Ok(serde_json::from_str(response)?)
     }
     /// Fetches a token using a login code
-    pub fn from_login_code(code: &str) -> Result<Token, Error> {
-
-        let res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&code=".to_string()+&code+"&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2"));
-        println!("{:?}",res);
-        if res.is_ok() {
-            Token::from_response(&res.unwrap().text().unwrap())
-        } else {
-            res.expect("Couldn't get token");
-            exit(0);
-        }
+    pub fn from_login_code(code: &str) -> Result<Token> {
+        let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&code=".to_string()+&code+"&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2"))?;
+        Token::from_response(&res.text()?)
     }
     /// Checks if token has expired
     pub fn is_expired(&self) -> bool {
         self.updated_at + self.expires_in - cur_date() <= 0
     }
     /// Attempts to fetch an updated token
-    pub fn refresh(&self) -> Result<Token, Error> {
-        let res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token));
-        if res.is_ok() {
-            let try = serde_json::from_str(&res.unwrap().text().unwrap());
-            return try;
-        } else {
-            res.expect("Couldn't refresh token");
-            exit(0);
-        }
+    pub fn refresh(&self) -> Result<Token> {
+        let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token))?;
+        Ok(serde_json::from_str(&res.text()?)?)
     }
 }

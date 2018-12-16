@@ -16,6 +16,4 @@ tasks:
       cd gogapi-rs
       cargo test
 triggers:
-  - action: email
-    condition: failure
-    to: Nico Hickman <nicohman@demenses.net>
+- {action: email, condition: failure, to: Nico Hickman <nicohman@demenses.net>}

@@ -5,6 +5,8 @@
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
+#[macro_use]
+extern crate error_chain;
 extern crate reqwest;
 extern crate serde;
 mod containers;
@@ -12,6 +14,8 @@ mod containers;
 pub mod gog;
 /// Module for OAuth token stuff
 pub mod token;
+pub mod error;
+use error::*;
 use connect::*;
 use containers::*;
 use domains::*;
@@ -22,14 +26,12 @@ use serde::de::DeserializeOwned;
 use serde_json::value::{Map, Value};
 use token::Token;
 use std::cell::RefCell;
-use ErrorType::*;
+use ErrorKind::*;
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
 /// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
 pub type EmptyResponse = ::std::result::Result<Response, Error>;
 type NResult<T, E> = ::std::result::Result<T, E>;
-/// An alias for a result with an error type of gog::Error
-pub type Result<T> = ::std::result::Result<T, Error>;
 macro_rules! map_p {
     ($($js: tt)+) => {
         Some(json!($($js)+).as_object().unwrap().clone())
@@ -90,14 +92,10 @@ impl Gog {
     ) -> Result<Response> {
         if self.token.borrow().is_expired() {
             if self.auto_update {
-                self.update_token(self.token.borrow().refresh().unwrap());
+                self.update_token(self.token.borrow().refresh()?);
                 return self.rreq(method,domain,path,params);
             } else {
-            return Err(Error {
-                etype: RefreshToken,
-                error: None,
-                msg: None,
-            });
+            return Err(ExpiredToken.into());
         }
         } else {
             let mut url = domain.to_string() + path;
@@ -111,16 +109,7 @@ impl Gog {
                     url.pop();
                 }
             }
-            let res = self.client.borrow().request(method, &url).send();
-            if res.is_err() {
-                return Err(Error {
-                    etype: Req,
-                    error: Some(res.err().unwrap()),
-                    msg: None,
-                });
-            } else {
-                return Ok(res.unwrap());
-            }
+            Ok(self.client.borrow().request(method, &url).send()?)
         }
     }
     fn fget<T>(
@@ -156,40 +145,17 @@ impl Gog {
     where
         T: DeserializeOwned,
     {
-        let res = self.rreq(method, domain, path, params);
-        if res.is_err() {
-            return Err(res.err().unwrap());
-        } else {
-            let st = res.unwrap().text().unwrap();
-            let try: NResult<T, serde_json::Error> = serde_json::from_str(&st);
-            if try.is_ok() {
-                return Ok(try.unwrap());
-            } else {
-                return Err(Error {
-                    etype: Gog,
-                    msg: Some(format!("{:?}\n{}", try.err().unwrap(), st)),
-                    error: None,
-                });
-            }
-        }
+        let mut res = self.rreq(method, domain, path, params)?;
+        let st = res.text()?;
+        Ok(serde_json::from_str(&st)?)
     }
     fn nfreq<T>(&self, method:Method, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T> where T: DeserializeOwned {
-            let r : Result<Map<String, Value>> = self.freq(method, domain, path, params);
-        if r.is_err() {
-            return Err(r.err().unwrap());
-        } else {
-            let r = r.unwrap();
+            let r : Map<String, Value> = self.freq(method, domain, path, params)?;
             if r.contains_key(nested) {
-                return Ok(serde_json::from_str(&r.get(nested).unwrap().to_string()).unwrap());
+                return Ok(serde_json::from_str(&r.get(nested).unwrap().to_string())?);
             } else {
-                return Err(Error {
-                    etype: Gog,
-                    msg: Some("Missing field ".to_string()+nested),
-                    error: None
-                });
+                return Err(MissingField(nested.to_string()).into());
             }
-        }
-
     }
     fn nfget<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>, nested: &str) -> Result<T> where T: DeserializeOwned {
         self.nfreq(GET, domain, path, params, nested)
@@ -204,41 +170,31 @@ impl Gog {
     }
     /// Gets any publically available data about a user
     pub fn get_pub_info(&self, uid: i64, expand: Vec<String>) -> Result<PubInfo> {
-        let r: Result<PubInfo> = self.fget(
+        self.fget(
             EMBD,
             &("/users/info/".to_string() + &uid.to_string()),
             map_p!({
             "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap()
-        }),
-        );
-        r
+            }),
+        )
     }
     /// Gets a user's owned games. Only gameids.
     pub fn get_games(&self) -> Result<Vec<i64>> {
-        let r: Result<OwnedGames> = self.fget(EMBD, "/user/data/games", None);
-        if r.is_ok() {
-            return Ok(r.unwrap().owned);
-        } else {
-            return Err(r.err().unwrap());
-        }
+        let r: OwnedGames = self.fget(EMBD, "/user/data/games", None)?;
+        Ok(r.owned)
     }
     /// Gets more info about a game by gameid
     pub fn get_game_details(&self, game_id: i64) -> Result<GameDetails> {
-        let r: Result<GameDetailsP> = self.fget(
+        let mut res: GameDetailsP = self.fget(
             EMBD,
             &("/account/gameDetails/".to_string() + &game_id.to_string() + ".json"),
             None,
-        );
-        if r.is_ok() {
-            let mut res = r.unwrap();
+        )?;
             res.downloads[0].remove(0);
             let downloads: Downloads = serde_json::from_str(
-                &serde_json::to_string(&res.downloads[0][0]).unwrap(),
-            ).unwrap();
+                &serde_json::to_string(&res.downloads[0][0])?,
+            )?;
             Ok(res.to_details(downloads))
-        } else {
-            return Err(r.err().unwrap());
-        }
     }
     /// Hides a product from your library
     pub fn hide_product(&self, game_id: i64) -> EmptyResponse {
@@ -314,7 +270,7 @@ impl Gog {
     }
     /// Returns detailed info about a product/products.
     pub fn product(&self, ids: Vec<i64>, expand: Vec<String>) -> Result<Vec<Product>> {
-        let r: Result<Vec<Product>> = self.fget(
+        self.fget(
             API,
             "/products",
             map_p!({
@@ -324,8 +280,7 @@ impl Gog {
                 done
             }).unwrap()
         }),
-        );
-        r
+        )
     }
     /// Get a list of achievements for a game and user id
     pub fn achievements(&self, product_id: i64, user_id: i64) -> Result<AchievementList> {
@@ -409,13 +364,8 @@ impl Gog {
     }
     /// Gets games this user has rated
     pub fn game_ratings(&self) -> Result<Vec<(String, i64)>> {
-        let g : Result<Map<String, Value>> = self.nfget(EMBD,"/user/games_rating.json", None, "games_rating");
-        if g.is_ok() {
-            return Ok(g.unwrap().iter().map(|x| return (x.0.to_owned(), x.1.as_i64().unwrap())).collect::<Vec<(String, i64)>>());
-
-        } else {
-            return Err(g.err().unwrap());
-        }
+        let g : Map<String, Value> = self.nfget(EMBD,"/user/games_rating.json", None, "games_rating")?;
+        Ok(g.iter().map(|x| return (x.0.to_owned(), x.1.as_i64().unwrap())).collect::<Vec<(String, i64)>>())
     }
     /// Gets reviews the user has voted on
     pub fn voted_reviews(&self) -> Result<Vec<i64>> {
