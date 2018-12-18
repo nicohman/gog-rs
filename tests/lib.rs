@@ -4,6 +4,8 @@ use std::fs::File;
 extern crate gog;
 use gog::token::Token;
 use gog::Gog;
+use gog::gog::FilterParam::*;
+use gog::gog::*;
 use std::io::Read;
 fn get_gog() -> Gog {
     let path = var_os("GOG_TOKEN_PATH").unwrap().into_string().unwrap();
@@ -58,4 +60,9 @@ fn product() {
 fn game_ratings() {
     let gog = get_gog();
     gog.game_ratings().unwrap();
+}
+#[test]
+fn filtered() {
+    let gog = get_gog();
+    gog.get_filtered_products(FilterParams::from_one(MediaType(1))).unwrap();
 }

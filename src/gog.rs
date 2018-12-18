@@ -10,6 +10,7 @@ use std::marker::PhantomData;
 use serde::de::{Visitor, MapAccess};
 use std::collections::{btree_map, BTreeMap};
 type GMap<K, V> = BTreeMap<K, V>;
+use FilterParam::*;
 /// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
@@ -371,6 +372,67 @@ pub struct GameDetails {
     pub forum_link: String,
     pub is_base_product_missing: bool,
     pub missing_base_product: Option<Value>,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FilterParams {
+    pub params: Vec<FilterParam>
+}
+impl FilterParams {
+    pub fn from_vec(p: Vec<FilterParam>) -> FilterParams {
+        return FilterParams {
+            params: p
+        }
+    }
+    pub fn from_one(p: FilterParam) -> FilterParams {
+        return FilterParams {
+            params: vec![p]
+        }
+    }
+    pub fn to_query_string(&self) -> String {
+        let mut s = String::from("?");
+        for p in &self.params {
+            s = s + p.to_string().as_str() +"&";
+        }
+        return s;
+    }
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub enum FilterParam {
+    MediaType(i32)
+}
+impl FilterParam {
+    pub fn to_string(&self) -> String {
+        use FilterParam::*;
+        match self {
+            MediaType(id) => format!("mediaType={}", id)
+        }
+    }
+}
+/// Details of a product, return
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductDetails {
+    pub title: String,
+    pub is_galaxy_compatible: bool,
+    pub id: i64,
+    pub image: String,
+    pub url: String,
+    pub works_on: WorksOn,
+    pub category: String,
+    pub rating: i32,
+    pub is_coming_soon: bool,
+    pub is_movie: bool,
+    pub is_game: bool,
+    pub slug: String,
+    pub updates: i64,
+    pub is_new:bool,
+    pub is_hidden: bool
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WorksOn {
+    pub Windows: bool,
+    pub Linux: bool,
+    pub Mac: bool
 }
 /// An extra that comes with a game, like wallpapers or soundtrack
 #[derive(Serialize, Deserialize, Debug, Clone)]

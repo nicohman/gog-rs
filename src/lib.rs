@@ -27,6 +27,7 @@ use serde_json::value::{Map, Value};
 use token::Token;
 use std::cell::RefCell;
 use ErrorKind::*;
+use gog::FilterParam::*;
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
 /// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
@@ -316,6 +317,10 @@ impl Gog {
             "tag_id":tag_id
         }),"success"
         )
+    }
+    /// Fetches info about a set of products owned by the user based on search criteria
+    pub fn get_filtered_products(&self, params: FilterParams) -> Result<Vec<ProductDetails>> {
+        self.nfget(EMBD, ("/account/getFilteredProducts".to_string() + &params.to_query_string()).as_str(), None, "products") 
     }
     /// Creates a new tag. Returns the tag's id
     pub fn create_tag(&self, name: &str) -> Result<i64> {
