@@ -5,7 +5,7 @@ use serde_json;
 use reqwest;
 use error::*;
 /// An OAuth token. Will usually expire after an hour.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
     /// How many seconds before this token expires
     pub expires_in: u64,
