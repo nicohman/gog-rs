@@ -197,6 +197,12 @@ impl Gog {
             )?;
             Ok(res.to_details(downloads))
     }
+    /// Returns a vec of game parts
+    pub fn download_game(&self, downloads: Vec<Download>) -> Vec<Response> {
+        downloads.iter().filter_map(|x| {
+            self.client.borrow().get(&(BASE.to_string()+&x.manual_url)).send().ok()
+        }).collect()
+    }
     /// Hides a product from your library
     pub fn hide_product(&self, game_id: i64) -> EmptyResponse {
         self.rget(EMBD, &("/account/hideProduct".to_string()+&game_id.to_string()), None)
@@ -320,7 +326,7 @@ impl Gog {
     }
     /// Fetches info about a set of products owned by the user based on search criteria
     pub fn get_filtered_products(&self, params: FilterParams) -> Result<Vec<ProductDetails>> {
-        self.nfget(EMBD, ("/account/getFilteredProducts".to_string() + &params.to_query_string()).as_str(), None, "products") 
+        self.nfget(EMBD, ("/account/getFilteredProducts".to_string() + &params.to_query_string()).as_str(), None, "products")
     }
     /// Creates a new tag. Returns the tag's id
     pub fn create_tag(&self, name: &str) -> Result<i64> {

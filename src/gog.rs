@@ -23,6 +23,22 @@ pub mod domains {
     pub static USRS: &str = "https://users.gog.com";
     pub static EMBD: &str = "https://embed.gog.com";
     pub static AUTH: &str = "https://auth.gog.com";
+    pub static BASE: &str = "https://gog.com";
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub enum OS {
+    Linux,
+    Windows,
+    MacOS
+}
+impl OS {
+    fn codes(&self) -> String {
+        match self {
+            Linux => "1024,2048",
+            Windows => "1,2,4,8,4096",
+            MacOS => "16,32"
+        }.to_string()
+    }
 }
 /// Available currencies
 #[derive(Serialize, Deserialize, Debug)]
@@ -393,18 +409,23 @@ impl FilterParams {
         for p in &self.params {
             s = s + p.to_string().as_str() +"&";
         }
+        s.pop();
+        println!("{}", s);
         return s;
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub enum FilterParam {
-    MediaType(i32)
+    MediaType(i32),
+    OS(OS)
 }
 impl FilterParam {
     pub fn to_string(&self) -> String {
         use FilterParam::*;
         match self {
-            MediaType(id) => format!("mediaType={}", id)
+            MediaType(id) => format!("mediaType={}", id),
+            // OS filtering only for games, so forces games
+            OS(os) => format!("system={}&mediaType=1", os.codes())
         }
     }
 }

@@ -7,6 +7,7 @@ use gog::Gog;
 use gog::gog::FilterParam::*;
 use gog::gog::*;
 use std::io::Read;
+use gog::gog::OS::*;
 fn get_gog() -> Gog {
     let path = var_os("GOG_TOKEN_PATH").unwrap().into_string().unwrap();
     let mut token_json = String::new();
@@ -65,4 +66,9 @@ fn game_ratings() {
 fn filtered() {
     let gog = get_gog();
     gog.get_filtered_products(FilterParams::from_one(MediaType(1))).unwrap();
+}
+#[test]
+fn filtered_os() {
+    let gog = get_gog();
+    println!("{:?}", gog.get_filtered_products(FilterParams::from_one(OS(Linux))).unwrap());
 }
