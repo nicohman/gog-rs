@@ -1,11 +1,11 @@
+use gog::*;
 use reqwest;
 use serde;
+use serde::de::Deserialize;
+use serde::Deserializer;
 use serde_json;
 use serde_json::value::{Map, Value};
-use serde::Deserializer;
-use serde::de::Deserialize;
 use std::fmt;
-use gog::*;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OwnedGames {
     pub owned: Vec<i64>,
@@ -53,13 +53,13 @@ impl GameDetailsP {
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Success {
-    pub success : bool
+    pub success: bool,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Id {
-    pub id: String
+    pub id: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StatusDel {
-    pub status: String
+    pub status: String,
 }

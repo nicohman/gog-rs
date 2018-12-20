@@ -1,14 +1,14 @@
+use containers::*;
 use reqwest;
 use serde;
+use serde::de::Deserialize;
+use serde::de::{MapAccess, Visitor};
+use serde::Deserializer;
 use serde_json;
 use serde_json::value::{Map, Value};
-use serde::Deserializer;
-use serde::de::Deserialize;
-use std::fmt;
-use containers::*;
-use std::marker::PhantomData;
-use serde::de::{Visitor, MapAccess};
 use std::collections::{btree_map, BTreeMap};
+use std::fmt;
+use std::marker::PhantomData;
 type GMap<K, V> = BTreeMap<K, V>;
 use FilterParam::*;
 /// The domains that the API requests will be made to
@@ -29,15 +29,16 @@ pub mod domains {
 pub enum OS {
     Linux,
     Windows,
-    MacOS
+    MacOS,
 }
 impl OS {
     fn codes(&self) -> String {
         match self {
             Linux => "1024,2048",
             Windows => "1,2,4,8,4096",
-            MacOS => "16,32"
-        }.to_string()
+            MacOS => "16,32",
+        }
+        .to_string()
     }
 }
 /// Available currencies
@@ -83,7 +84,7 @@ pub enum ShelfBackground {
     Glass,
     Chrome,
     White,
-    Piano_Black
+    Piano_Black,
 }
 impl ShelfBackground {
     pub fn as_str(&self) -> &str {
@@ -94,7 +95,7 @@ impl ShelfBackground {
             Glass => "glass",
             Chrome => "chrome",
             White => "white",
-            Piano_Black => "piano_black"
+            Piano_Black => "piano_black",
         }
     }
 }
@@ -391,23 +392,19 @@ pub struct GameDetails {
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FilterParams {
-    pub params: Vec<FilterParam>
+    pub params: Vec<FilterParam>,
 }
 impl FilterParams {
     pub fn from_vec(p: Vec<FilterParam>) -> FilterParams {
-        return FilterParams {
-            params: p
-        }
+        return FilterParams { params: p };
     }
     pub fn from_one(p: FilterParam) -> FilterParams {
-        return FilterParams {
-            params: vec![p]
-        }
+        return FilterParams { params: vec![p] };
     }
     pub fn to_query_string(&self) -> String {
         let mut s = String::from("?");
         for p in &self.params {
-            s = s + p.to_string().as_str() +"&";
+            s = s + p.to_string().as_str() + "&";
         }
         s.pop();
         println!("{}", s);
@@ -417,7 +414,7 @@ impl FilterParams {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum FilterParam {
     MediaType(i32),
-    OS(OS)
+    OS(OS),
 }
 impl FilterParam {
     pub fn to_string(&self) -> String {
@@ -425,7 +422,7 @@ impl FilterParam {
         match self {
             MediaType(id) => format!("mediaType={}", id),
             // OS filtering only for games, so forces games
-            OS(os) => format!("system={}&mediaType=1", os.codes())
+            OS(os) => format!("system={}&mediaType=1", os.codes()),
         }
     }
 }
@@ -446,14 +443,14 @@ pub struct ProductDetails {
     pub is_game: bool,
     pub slug: String,
     pub updates: i64,
-    pub is_new:bool,
-    pub is_hidden: bool
+    pub is_new: bool,
+    pub is_hidden: bool,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WorksOn {
     pub Windows: bool,
     pub Linux: bool,
-    pub Mac: bool
+    pub Mac: bool,
 }
 /// An extra that comes with a game, like wallpapers or soundtrack
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -504,7 +501,7 @@ pub struct Wishlist {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AchievementList {
     pub total_count: i32,
-    pub items: Vec<Achievement>
+    pub items: Vec<Achievement>,
 }
 /// A GOG Galaxy Achievement
 #[derive(Serialize, Deserialize, Debug)]
@@ -516,5 +513,5 @@ pub struct Achievement {
     pub description: String,
     pub image_url_unlocked: String,
     pub image_url_locked: String,
-    pub date_unlocked:Option<String>
+    pub date_unlocked: Option<String>,
 }

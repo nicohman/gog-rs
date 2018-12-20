@@ -72,3 +72,9 @@ fn filtered_os() {
     let gog = get_gog();
     println!("{:?}", gog.get_filtered_products(FilterParams::from_one(OS(Linux))).unwrap());
 }
+#[test]
+fn download() {
+    let gog = get_gog();
+    let details = gog.get_game_details(1429698467).unwrap();
+    let mut downloads = gog.download_game(details.downloads.linux.unwrap()).unwrap();
+}

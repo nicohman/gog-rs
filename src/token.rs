@@ -1,9 +1,9 @@
-use std::time::{Duration, SystemTime};
+use error::*;
+use reqwest;
+use serde_json;
 use serde_json::Error;
 use std::process::exit;
-use serde_json;
-use reqwest;
-use error::*;
+use std::time::{Duration, SystemTime};
 /// An OAuth token. Will usually expire after an hour.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
@@ -29,7 +29,7 @@ fn cur_date() -> u64 {
 impl Token {
     /// Creates a token from a response from /token
     pub fn from_response(response: &str) -> Result<Token> {
-        println!("{}",response);
+        println!("{}", response);
         Ok(serde_json::from_str(response)?)
     }
     /// Fetches a token using a login code
