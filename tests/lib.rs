@@ -76,5 +76,5 @@ fn filtered_os() {
 fn download() {
     let gog = get_gog();
     let details = gog.get_game_details(1429698467).unwrap();
-    let mut downloads = gog.download_game(details.downloads.linux.unwrap()).unwrap();
+    let mut downloads = gog.download_game(details.downloads.linux.unwrap());
 }
