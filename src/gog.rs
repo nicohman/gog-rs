@@ -25,7 +25,7 @@ pub mod domains {
     pub static AUTH: &str = "https://auth.gog.com";
     pub static BASE: &str = "https://gog.com";
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum OS {
     Linux,
     Windows,
@@ -42,7 +42,7 @@ impl OS {
     }
 }
 /// Available currencies
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Currency {
     USD,
     EUR,
@@ -62,7 +62,7 @@ impl fmt::Display for Currency {
     }
 }
 /// Available languages
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Language {
     /// en-US
     ENUS,
@@ -182,7 +182,7 @@ pub mod connect {
         pub status: ConnectGameStatus,
     }
     /// The status of a GOG Connect game
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
     #[serde(rename_all = "camelCase")]
     pub enum ConnectGameStatus {
         IMPORTED,
@@ -407,11 +407,10 @@ impl FilterParams {
             s = s + p.to_string().as_str() + "&";
         }
         s.pop();
-        println!("{}", s);
         return s;
     }
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum FilterParam {
     MediaType(i32),
     OS(OS),
@@ -448,7 +447,7 @@ pub struct ProductDetails {
     pub is_new: bool,
     pub is_hidden: bool,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct WorksOn {
     pub Windows: bool,
     pub Linux: bool,
