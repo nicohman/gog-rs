@@ -78,3 +78,8 @@ fn download() {
     let details = gog.get_game_details(1429698467).unwrap();
     let mut downloads = gog.download_game(details.downloads.linux.unwrap());
 }
+#[test]
+fn filtered_search() {
+    let gog = get_gog();
+    gog.get_filtered_products(FilterParams::from_one(Search("Not A Hero".to_string()))).unwrap();
+}

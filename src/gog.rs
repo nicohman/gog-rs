@@ -415,6 +415,7 @@ impl FilterParams {
 pub enum FilterParam {
     MediaType(i32),
     OS(OS),
+    Search(String)
 }
 impl FilterParam {
     pub fn to_string(&self) -> String {
@@ -423,6 +424,7 @@ impl FilterParam {
             MediaType(id) => format!("mediaType={}", id),
             // OS filtering only for games, so forces games
             OS(os) => format!("system={}&mediaType=1", os.codes()),
+            Search(st) => format!("search={}&mediaType=1", st)
         }
     }
 }

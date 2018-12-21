@@ -410,9 +410,12 @@ impl Gog {
     }
     /// Fetches info about a set of products owned by the user based on search criteria
     pub fn get_filtered_products(&self, params: FilterParams) -> Result<Vec<ProductDetails>> {
+        //GOG.com url is just to avoid "cannot be a base" url parse error, as we only need the path anyways
+        let url = reqwest::Url::parse(&("https://gog.com/account/getFilteredProducts".to_string() + &params.to_query_string())).unwrap();
+        let path = url.path().to_string() + "?"+url.query().unwrap();
         self.nfget(
             EMBD,
-            ("/account/getFilteredProducts".to_string() + &params.to_query_string()).as_str(),
+            &path,
             None,
             "products",
         )
