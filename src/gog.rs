@@ -183,7 +183,7 @@ pub mod connect {
     }
     /// The status of a GOG Connect game
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
-    #[serde(rename_all = "camelCase")]
+    #[serde(rename_all = "lowercase")]
     pub enum ConnectGameStatus {
         IMPORTED,
         READY_TO_LINK,

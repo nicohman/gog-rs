@@ -83,3 +83,10 @@ fn filtered_search() {
     let gog = get_gog();
     gog.get_filtered_products(FilterParams::from_one(Search("Not A Hero".to_string()))).unwrap();
 }
+#[test]
+fn connect_status() {
+    let gog = get_gog();
+    let uid = gog.get_user_data().unwrap().user_id;
+    println!("{}", gog.token.borrow().user_id);
+    println!("{:?}",gog.connect_status(uid.parse().unwrap()).unwrap());
+}
