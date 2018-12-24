@@ -8,6 +8,7 @@ use gog::gog::FilterParam::*;
 use gog::gog::*;
 use std::io::Read;
 use gog::gog::OS::*;
+use std::fs;
 fn get_gog() -> Gog {
     let path = var_os("GOG_TOKEN_PATH").unwrap().into_string().unwrap();
     let mut token_json = String::new();
@@ -89,4 +90,15 @@ fn connect_status() {
     let uid = gog.get_user_data().unwrap().user_id;
     println!("{}", gog.token.borrow().user_id);
     println!("{:?}",gog.connect_status(uid.parse().unwrap()).unwrap());
+}
+#[test]
+#[ignore]
+fn extract() {
+    use gog::extract::*;
+    let mut in_file = File::open("Not A Hero").unwrap();
+    extract(&mut in_file, ".".to_string(), ToExtract {
+        unpacker: true,
+        data: true,
+        mojosetup: true
+    });
 }

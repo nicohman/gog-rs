@@ -9,12 +9,15 @@ extern crate serde_json;
 extern crate error_chain;
 extern crate reqwest;
 extern crate serde;
+extern crate regex;
 mod containers;
 pub mod error;
 /// Module for GOG structs and responses
 pub mod gog;
 /// Module for OAuth token stuff
 pub mod token;
+/// Module for extracting GOG installers into their component parts
+pub mod extract;
 use connect::*;
 use containers::*;
 use domains::*;
