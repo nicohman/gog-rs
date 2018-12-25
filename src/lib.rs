@@ -11,10 +11,11 @@ extern crate reqwest;
 extern crate serde;
 extern crate regex;
 mod containers;
-pub mod error;
+/// Provides error-handling logic
+mod error;
 /// Module for GOG structs and responses
 pub mod gog;
-/// Module for OAuth token stuff
+/// Module for OAuth token management
 pub mod token;
 /// Module for extracting GOG installers into their component parts
 pub mod extract;
@@ -33,6 +34,10 @@ use std::cell::RefCell;
 use token::Token;
 use reqwest::header::*;
 use ErrorKind::*;
+/// Main error for GOG calls
+pub use error::Error;
+pub use error::ErrorKind;
+pub use error::Result;
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
 /// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
