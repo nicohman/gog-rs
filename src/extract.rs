@@ -18,7 +18,8 @@ pub struct ToExtract {
     pub data: bool,
 }
 /// When given a file descriptor for a GOG Game installer and output directory, extracts out the different parts of it as unpacker.sh, mojosetup.tar.gz, and data.zip.
-pub fn extract(in_file: &mut File, out_string: String, extract: ToExtract) -> Result<()> {
+pub fn extract<N>(in_file: &mut File, out_string: N, extract: ToExtract) -> Result<()> where N: Into<String> {
+    let out_string = out_string.into();
     let out_dir = Path::new(&out_string);
     let filesize_reg = Regex::new(r#"filesizes="(\d+)"#).unwrap();
     let offset_reg = Regex::new(r"offset=`head -n (\d+)").unwrap();

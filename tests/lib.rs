@@ -96,7 +96,7 @@ fn connect_status() {
 fn extract() {
     use gog::extract::*;
     let mut in_file = File::open("Not A Hero").unwrap();
-    extract(&mut in_file, ".".to_string(), ToExtract {
+    extract(&mut in_file, ".", ToExtract {
         unpacker: true,
         data: true,
         mojosetup: true
