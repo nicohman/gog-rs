@@ -295,6 +295,19 @@ pub mod product {
         pub image_url: String,
     }
 }
+/// Information about a friend
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Friend {
+    pub user_id: String,
+    pub username: String,
+    pub is_employee: bool,
+}
+/// Returned as part of Friends endpoint. Contains URLs to friend's avatar
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MediumImages {
+    pub medium: String,
+    pub medium_2x: String,
+}
 /// An user's avatar urls
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -414,7 +427,7 @@ impl FilterParams {
 pub enum FilterParam {
     MediaType(i32),
     OS(OS),
-    Search(String)
+    Search(String),
 }
 impl FilterParam {
     pub fn to_string(&self) -> String {
@@ -423,7 +436,7 @@ impl FilterParam {
             MediaType(id) => format!("mediaType={}", id),
             // OS filtering only for games, so forces games
             OS(os) => format!("system={}&mediaType=1", os.codes()),
-            Search(st) => format!("search={}&mediaType=1", st)
+            Search(st) => format!("search={}&mediaType=1", st),
         }
     }
 }

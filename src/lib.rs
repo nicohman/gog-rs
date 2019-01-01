@@ -7,37 +7,37 @@ extern crate serde_derive;
 extern crate serde_json;
 #[macro_use]
 extern crate error_chain;
+extern crate regex;
 extern crate reqwest;
 extern crate serde;
-extern crate regex;
 mod containers;
 /// Provides error-handling logic
 mod error;
+/// Module for extracting GOG installers into their component parts
+pub mod extract;
 /// Module for GOG structs and responses
 pub mod gog;
 /// Module for OAuth token management
 pub mod token;
-/// Module for extracting GOG installers into their component parts
-pub mod extract;
 use connect::*;
 use containers::*;
 use domains::*;
+/// Main error for GOG calls
+pub use error::Error;
+pub use error::ErrorKind;
+pub use error::Result;
 use error::*;
 use gog::FilterParam::*;
 use gog::*;
 use product::*;
+use reqwest::header::*;
 use reqwest::RedirectPolicy;
 use reqwest::{Client, Method, Response};
 use serde::de::DeserializeOwned;
 use serde_json::value::{Map, Value};
 use std::cell::RefCell;
 use token::Token;
-use reqwest::header::*;
 use ErrorKind::*;
-/// Main error for GOG calls
-pub use error::Error;
-pub use error::ErrorKind;
-pub use error::Result;
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
 /// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
@@ -86,6 +86,12 @@ impl Gog {
         self.client_noredirect
             .replace(client_re.default_headers(headers).build().unwrap());
         self.token.replace(token);
+    }
+    pub fn uid_string(&self) -> String {
+        self.token.borrow().user_id.clone()
+    }
+    pub fn uid(&self) -> i64 {
+        self.token.borrow().user_id.parse().unwrap()
     }
     fn headers_token(at: &str) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
@@ -247,7 +253,7 @@ impl Gog {
         downloads
             .iter()
             .filter_map(|x| {
-                let mut url = BASE.to_string() +  &x.manual_url;
+                let mut url = BASE.to_string() + &x.manual_url;
                 let mut response;
                 loop {
                     let temp_response = self.client_noredirect.borrow().get(&url).send();
@@ -256,7 +262,12 @@ impl Gog {
                         let headers = response.headers();
                         // GOG appears to be inconsistent with returning either 301/301, so this just checks for a redirect location.
                         if headers.contains_key("location") {
-                            url = headers.get("location").unwrap().to_str().unwrap().to_string();
+                            url = headers
+                                .get("location")
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_string();
                         } else {
                             break;
                         }
@@ -419,14 +430,13 @@ impl Gog {
     /// Fetches info about a set of products owned by the user based on search criteria
     pub fn get_filtered_products(&self, params: FilterParams) -> Result<Vec<ProductDetails>> {
         //GOG.com url is just to avoid "cannot be a base" url parse error, as we only need the path anyways
-        let url = reqwest::Url::parse(&("https://gog.com/account/getFilteredProducts".to_string() + &params.to_query_string())).unwrap();
-        let path = url.path().to_string() + "?"+url.query().unwrap();
-        self.nfget(
-            EMBD,
-            &path,
-            None,
-            "products",
+        let url = reqwest::Url::parse(
+            &("https://gog.com/account/getFilteredProducts".to_string()
+                + &params.to_query_string()),
         )
+        .unwrap();
+        let path = url.path().to_string() + "?" + url.query().unwrap();
+        self.nfget(EMBD, &path, None, "products")
     }
     /// Creates a new tag. Returns the tag's id
     pub fn create_tag(&self, name: &str) -> Result<i64> {
@@ -507,6 +517,15 @@ impl Gog {
             EMBD,
             &("/account/save_shelf_background/".to_string() + bg.as_str()),
             None,
+        )
+    }
+    /// Returns list of friends
+    pub fn friends(&self) -> Result<Vec<Friend>> {
+        self.nfget(
+            CHAT,
+            &("/users/".to_string() + &self.uid_string() + "/friends"),
+            None,
+            "items",
         )
     }
 }
