@@ -2,7 +2,10 @@
 name = "gog"
 version = "0.1.0"
 authors = ["Nico Hickman <nicohman@demenses.net>"]
-
+repository = "https://git.sr.ht/~nicohman/gogapi-rs"
+description = "A crate to use the GOG web api"
+license = "GPL-3.0"
+keywords = ["gog", "games", "api"]
 [dependencies]
 reqwest = "0.9.2"
 serde_json = "1.0.27"
