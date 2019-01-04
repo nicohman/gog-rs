@@ -17,5 +17,9 @@ error_chain! {
             description("missing field")
             display("missing field: {}", field)
         }
+        NotAvailable {
+            description("not available")
+            display("the resource requested is not available")
+        }
     }
 }
