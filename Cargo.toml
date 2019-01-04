@@ -1,6 +1,6 @@
 [package]
 name = "gog"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Nico Hickman <nicohman@demenses.net>"]
 repository = "https://git.sr.ht/~nicohman/gogapi-rs"
 description = "A crate to use the GOG web api"

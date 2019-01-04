@@ -173,7 +173,6 @@ impl Gog {
     {
         let mut res = self.rreq(method, domain, path, params)?;
         let st = res.text()?;
-        println!("{}", st);
         Ok(serde_json::from_str(&st)?)
     }
     fn nfreq<T>(
