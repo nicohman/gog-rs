@@ -6,7 +6,7 @@ use gog::gog::FilterParam::*;
 use gog::gog::OS::*;
 use gog::gog::*;
 use gog::token::Token;
-use gog::Gog;
+use gog::*;
 use std::fs;
 use std::io::Read;
 fn get_gog() -> Gog {
@@ -99,10 +99,24 @@ fn filtered_search() {
         .unwrap();
 }
 #[test]
+fn filtered_unowned() {
+    let gog = get_gog();
+    gog.get_products(FilterParams::from_one(Search("Stellaris".to_string())))
+        .unwrap();
+}
+
+#[test]
 fn connect_status() {
     let gog = get_gog();
     let uid = gog.get_user_data().unwrap().user_id;
-    gog.connect_status(uid.parse().unwrap()).unwrap();
+    let status = gog.connect_status(uid.parse().unwrap());
+    if status.is_err() {
+        let err = status.err().unwrap();
+        match err.kind() {
+            ErrorKind::NotAvailable => {}
+            _ => panic!("{:?}", err),
+        }
+    }
 }
 #[test]
 fn friends() {

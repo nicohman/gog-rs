@@ -99,6 +99,7 @@ impl Gog {
             "Authorization",
             ("Bearer ".to_string() + at).parse().unwrap(),
         );
+        // GOG now requires this magic cookie to be included in all requests.
         headers.insert("CSRF", "csrf=true".parse().unwrap());
         return headers;
     }
@@ -172,6 +173,7 @@ impl Gog {
     {
         let mut res = self.rreq(method, domain, path, params)?;
         let st = res.text()?;
+        println!("{}", st);
         Ok(serde_json::from_str(&st)?)
     }
     fn nfreq<T>(
@@ -260,7 +262,7 @@ impl Gog {
                     if temp_response.is_ok() {
                         response = temp_response.unwrap();
                         let headers = response.headers();
-                        // GOG appears to be inconsistent with returning either 301/301, so this just checks for a redirect location.
+                        // GOG appears to be inconsistent with returning either 301/302, so this just checks for a redirect location.
                         if headers.contains_key("location") {
                             url = headers
                                 .get("location")
@@ -351,13 +353,27 @@ impl Gog {
     }
     /// Gets claimable status of currently available games on GOG Connect
     pub fn connect_status(&self, user_id: i64) -> Result<ConnectStatus> {
-        self.fget(
-            EMBD,
-            &("/api/v1/users/".to_string()
-                + &user_id.to_string()
-                + "/gogLink/steam/exchangeableProducts"),
-            None,
-        )
+        let st = self
+            .rget(
+                EMBD,
+                &("/api/v1/users/".to_string()
+                    + &user_id.to_string()
+                    + "/gogLink/steam/exchangeableProducts"),
+                None,
+            )?
+            .text()?;
+        if let Ok(cs) = serde_json::from_str(&st) {
+            return Ok(cs);
+        } else {
+            let map: Map<String, Value> = serde_json::from_str(&st)?;
+            if let Some(items) = map.get("items") {
+                let array = items.as_array();
+                if array.is_some() && array.unwrap().len() == 0 {
+                    return Err(NotAvailable.into());
+                }
+            }
+        }
+        Err(MissingField("items".to_string()).into())
     }
     /// Scans Connect for claimable games
     pub fn connect_scan(&self, user_id: i64) -> EmptyResponse {
@@ -433,6 +449,16 @@ impl Gog {
         let url = reqwest::Url::parse(
             &("https://gog.com/account/getFilteredProducts".to_string()
                 + &params.to_query_string()),
+        )
+        .unwrap();
+        let path = url.path().to_string() + "?" + url.query().unwrap();
+        self.nfget(EMBD, &path, None, "products")
+    }
+    /// Fetches info about a set of products based on search criteria
+    pub fn get_products(&self, params: FilterParams) -> Result<Vec<UnownedProductDetails>> {
+        //GOG.com url is just to avoid "cannot be a base" url parse error, as we only need the path anyways
+        let url = reqwest::Url::parse(
+            &("https://gog.com/games/ajax/filtered".to_string() + &params.to_query_string()),
         )
         .unwrap();
         let path = url.path().to_string() + "?" + url.query().unwrap();

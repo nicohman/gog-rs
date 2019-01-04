@@ -219,6 +219,7 @@ pub mod product {
         pub related_products: Option<Value>,
         pub changelog: Option<Value>,
     }
+
     /// What OS' this product supports
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
@@ -440,7 +441,7 @@ impl FilterParam {
         }
     }
 }
-/// Details of a product, return
+/// Details of a product, returned from get_filtered_products
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ProductDetails {
@@ -459,6 +460,71 @@ pub struct ProductDetails {
     pub updates: i64,
     pub is_new: bool,
     pub is_hidden: bool,
+}
+/// Details of a product, returned from get_products
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UnownedProductDetails {
+    pub price: Price,
+    pub is_discounted: bool,
+    pub is_in_development: bool,
+    pub id: i64,
+    pub release_date: i64,
+    pub availability: Availability,
+    pub buyable: bool,
+    pub sales_visibility: SalesVisibility,
+    pub title: String,
+    pub image: String,
+    pub url: String,
+    pub support_url: String,
+    pub forum_url: String,
+    pub works_on: WorksOn,
+    pub category: String,
+    pub original_category: String,
+    pub rating: i64,
+    #[serde(rename = "type")]
+    pub product_type: i64,
+    pub is_coming_soon: bool,
+    pub is_price_visible: bool,
+    pub is_movie: bool,
+    pub is_game: bool,
+    pub slug: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Price {
+    pub amount: String,
+    pub base_amount: String,
+    pub final_amount: String,
+    pub is_discounted: bool,
+    pub discount_percentage: i64,
+    pub discount_difference: String,
+    pub symbol: String,
+    pub is_free: bool,
+    pub discount: i64,
+    pub is_bonus_store_credit_included: bool,
+    pub bonus_store_credit_amount: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Availability {
+    pub is_available: bool,
+    pub is_available_in_account: bool,
+}
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SalesVisibility {
+    pub is_active: bool,
+    pub from_object: DurationEnd,
+    pub to_object: DurationEnd,
+    pub from: i64,
+    pub to: i64,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DurationEnd {
+    pub date: String,
+    pub timezone_type: i64,
+    pub timezone: String,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct WorksOn {
