@@ -1,16 +1,7 @@
-use containers::*;
-use reqwest;
-use serde;
-use serde::de::Deserialize;
-use serde::de::{MapAccess, Visitor};
-use serde::Deserializer;
-use serde_json;
 use serde_json::value::{Map, Value};
-use std::collections::{btree_map, BTreeMap};
+use std::collections::BTreeMap;
 use std::fmt;
-use std::marker::PhantomData;
 type GMap<K, V> = BTreeMap<K, V>;
-use FilterParam::*;
 /// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
@@ -34,9 +25,9 @@ pub enum OS {
 impl OS {
     fn codes(&self) -> String {
         match self {
-            Linux => "1024,2048",
-            Windows => "1,2,4,8,4096",
-            MacOS => "16,32",
+            OS::Linux => "1024,2048",
+            OS::Windows => "1,2,4,8,4096",
+            OS::MacOS => "16,32",
         }
         .to_string()
     }
@@ -101,15 +92,13 @@ impl ShelfBackground {
 }
 impl fmt::Display for Language {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let res = match (&self) {
-            ENUS => "en-US",
-            FR => "fr-FR",
-            PTBR => "pt-BR",
-            RU => "ru-RU",
-            DE => "de-DE",
-            ZH => "zh-HANS",
-            // Sorry
-            _ => "en-US",
+        let res = match &self {
+            Language::ENUS => "en-US",
+            Language::FR => "fr-FR",
+            Language::PTBR => "pt-BR",
+            Language::RU => "ru-RU",
+            Language::DE => "de-DE",
+            Language::ZH => "zh-HANS",
         };
         write!(f, "{}", res)
     }
@@ -148,7 +137,6 @@ pub mod status {
 /// GOG Connect-related structs
 pub mod connect {
     use gog::GMap;
-    use serde_json::value::{Map, Value};
     /// A GOG Connect-linked steam account
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]

@@ -1,13 +1,11 @@
 use std::env::var_os;
 use std::fs::File;
-use std::process::Command;
 extern crate gog;
 use gog::gog::FilterParam::*;
 use gog::gog::OS::*;
 use gog::gog::*;
 use gog::token::Token;
 use gog::*;
-use std::fs;
 use std::io::Read;
 fn get_gog() -> Gog {
     let path = var_os("GOG_TOKEN_PATH").unwrap().into_string().unwrap();
@@ -16,11 +14,9 @@ fn get_gog() -> Gog {
         .unwrap()
         .read_to_string(&mut token_json)
         .unwrap();
-    let uri = "auth.gog.com/auth?client_id=46899977096215655&redirect_uri=https://embed.gog.com/on_login_success?origin=client&response_type=code&layout=client2";
     let mut token = Token::from_response(&token_json).unwrap();
     token = token.refresh().unwrap();
-    let mut gog = Gog::new(token);
-    gog
+    Gog::new(token)
 }
 #[test]
 fn get_games() {
@@ -90,7 +86,7 @@ fn filtered_os() {
 fn download() {
     let gog = get_gog();
     let details = gog.get_game_details(1429698467).unwrap();
-    let mut downloads = gog.download_game(details.downloads.linux.unwrap());
+    gog.download_game(details.downloads.linux.unwrap());
 }
 #[test]
 fn filtered_search() {
@@ -121,7 +117,7 @@ fn connect_status() {
 #[test]
 fn friends() {
     let gog = get_gog();
-    let friends = gog.friends().unwrap();
+    gog.friends().unwrap();
 }
 #[test]
 #[ignore]
@@ -136,5 +132,6 @@ fn extract() {
             data: true,
             mojosetup: true,
         },
-    );
+    )
+    .unwrap();
 }

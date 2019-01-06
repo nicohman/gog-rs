@@ -1,11 +1,5 @@
 use gog::*;
-use reqwest;
-use serde;
-use serde::de::Deserialize;
-use serde::Deserializer;
-use serde_json;
-use serde_json::value::{Map, Value};
-use std::fmt;
+use serde_json::value::Value;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OwnedGames {
     pub owned: Vec<i64>,

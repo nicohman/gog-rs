@@ -2,13 +2,12 @@
 use crate::error::*;
 use regex::*;
 use std::fs;
-use std::fs::OpenOptions;
 use std::fs::*;
 use std::io::prelude::*;
+use std::io::BufReader;
 use std::io::Read;
 use std::io::SeekFrom::*;
 use std::io::Write;
-use std::io::{self, BufReader};
 use std::iter::FromIterator;
 use std::os::unix::fs::PermissionsExt;
 use std::path::*;
@@ -26,9 +25,9 @@ where
     let out_dir = Path::new(&out_string);
     let filesize_reg = Regex::new(r#"filesizes="(\d+)"#).unwrap();
     let offset_reg = Regex::new(r"offset=`head -n (\d+)").unwrap();
-    fs::create_dir_all(out_dir);
+    fs::create_dir_all(out_dir)?;
     let mut beg_buf: [u8; 10240] = [0; 10240];
-    let beginning = in_file.read_exact(&mut beg_buf)?;
+    let _beginning = in_file.read_exact(&mut beg_buf)?;
     let vec_beg: Vec<u8> = Vec::from_iter(beg_buf.iter().map(|x| *x));
     let mut buf_in_file = BufReader::new(in_file);
     buf_in_file.seek(Start(0))?;
@@ -37,7 +36,7 @@ where
     let lines: i64 = offset_string.parse().unwrap();
     let mut dump = String::new();
     let mut script_size: u64 = 0;
-    for i in 0..lines {
+    for _i in 0..lines {
         script_size += buf_in_file.read_line(&mut dump)? as u64;
     }
     println!("Script size: {}", script_size);

@@ -26,11 +26,8 @@ use domains::*;
 pub use error::Error;
 pub use error::ErrorKind;
 pub use error::Result;
-use error::*;
-use gog::FilterParam::*;
 use gog::*;
 use product::*;
-use reqwest::header::*;
 use reqwest::RedirectPolicy;
 use reqwest::{Client, Method, Response};
 use serde::de::DeserializeOwned;
@@ -42,7 +39,6 @@ const GET: Method = Method::GET;
 const POST: Method = Method::POST;
 /// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
 pub type EmptyResponse = ::std::result::Result<Response, Error>;
-type NResult<T, E> = ::std::result::Result<T, E>;
 macro_rules! map_p {
     ($($js: tt)+) => {
         Some(json!($($js)+).as_object().unwrap().clone())
@@ -65,7 +61,7 @@ impl Gog {
         Gog::from_token(token)
     }
     fn from_token(token: Token) -> Gog {
-        let mut headers = Gog::headers_token(&token.access_token);
+        let headers = Gog::headers_token(&token.access_token);
         let mut client = Client::builder();
         let mut client_re = Client::builder().redirect(RedirectPolicy::none());
         client = client.default_headers(headers.clone());
@@ -78,9 +74,9 @@ impl Gog {
         };
     }
     fn update_token(&self, token: Token) {
-        let mut headers = Gog::headers_token(&token.access_token);
-        let mut client = Client::builder();
-        let mut client_re = Client::builder().redirect(RedirectPolicy::none());
+        let headers = Gog::headers_token(&token.access_token);
+        let client = Client::builder();
+        let client_re = Client::builder().redirect(RedirectPolicy::none());
         self.client
             .replace(client.default_headers(headers.clone()).build().unwrap());
         self.client_noredirect

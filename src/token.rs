@@ -1,9 +1,7 @@
 use error::*;
 use reqwest;
 use serde_json;
-use serde_json::Error;
-use std::process::exit;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 /// An OAuth token. Will usually expire after an hour.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
