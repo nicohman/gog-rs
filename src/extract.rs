@@ -39,7 +39,6 @@ where
     for _i in 0..lines {
         script_size += buf_in_file.read_line(&mut dump)? as u64;
     }
-    println!("Script size: {}", script_size);
     buf_in_file.seek(Start(0))?;
     let mut script_bin = vec![0u8; script_size as usize];
     buf_in_file.read_exact(&mut script_bin)?;
@@ -56,7 +55,6 @@ where
         .to_string()
         .parse()
         .unwrap();
-    println!("MojoSetup size: {}", filesize);
     let mut mojo = vec![0u8; filesize];
     buf_in_file.seek(Start(script_size))?;
     buf_in_file.read_exact(&mut mojo)?;
