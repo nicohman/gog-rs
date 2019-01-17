@@ -240,10 +240,14 @@ impl Gog {
             &("/account/gameDetails/".to_string() + &game_id.to_string() + ".json"),
             None,
         )?;
-        res.downloads[0].remove(0);
-        let downloads: Downloads =
-            serde_json::from_str(&serde_json::to_string(&res.downloads[0][0])?)?;
-        Ok(res.to_details(downloads))
+        if res.downloads.len() > 0 {
+            res.downloads[0].remove(0);
+            let downloads: Downloads =
+                serde_json::from_str(&serde_json::to_string(&res.downloads[0][0])?)?;
+            Ok(res.to_details(downloads))
+        } else {
+            Err(NotAvailable.into())
+        }
     }
     /// Returns a vec of game parts
     pub fn download_game(&self, downloads: Vec<Download>) -> Vec<Response> {
@@ -394,12 +398,12 @@ impl Gog {
             API,
             "/products",
             map_p!({
-            "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap(),
-            "ids": ids.iter().try_fold("".to_string(), |acc, x|{
-                let done : Result<String> = Ok(acc +"," +&x.to_string());
-                done
-            }).unwrap()
-        }),
+                "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap(),
+                "ids": ids.iter().try_fold("".to_string(), |acc, x|{
+                    let done : Result<String> = Ok(acc +"," +&x.to_string());
+                    done
+                }).unwrap()
+            }),
         )
     }
     /// Get a list of achievements for a game and user id
@@ -420,9 +424,9 @@ impl Gog {
             EMBD,
             "/account/tags/attach",
             map_p!({
-            "product_id":product_id,
-            "tag_id":tag_id
-        }),
+                "product_id":product_id,
+                "tag_id":tag_id
+            }),
         );
         res.map(|x| x.success)
     }
@@ -432,9 +436,9 @@ impl Gog {
             EMBD,
             "/account/tags/detach",
             map_p!({
-            "product_id":product_id,
-            "tag_id":tag_id
-        }),
+                "product_id":product_id,
+                "tag_id":tag_id
+            }),
             "success",
         )
     }
