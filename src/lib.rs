@@ -250,10 +250,10 @@ impl Gog {
         }
     }
     /// Returns a vec of game parts
-    pub fn download_game(&self, downloads: Vec<Download>) -> Vec<Response> {
+    pub fn download_game(&self, downloads: Vec<Download>) -> Vec<Result<Response>> {
         downloads
             .iter()
-            .filter_map(|x| {
+            .map(|x| {
                 let mut url = BASE.to_string() + &x.manual_url;
                 let mut response;
                 loop {
@@ -273,10 +273,10 @@ impl Gog {
                             break;
                         }
                     } else {
-                        return None;
+                        return Err(temp_response.err().unwrap().into());
                     }
                 }
-                Some(response)
+                Ok(response)
             })
             .collect()
     }
