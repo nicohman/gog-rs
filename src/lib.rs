@@ -703,6 +703,11 @@ impl Gog {
             let entry = CDEntry::from_reader(&mut full_reader);
             files.push(entry);
         }
+        let len = files.len();
+        files[len - 1].end_offset = offset_beg as u64 - 1;
+        for i in 0..(len - 1) {
+            files[i].end_offset = files[i + 1].disk_offset.unwrap() + (sizes.0 + sizes.1) as u64;
+        }
         Ok(ZipData {
             sizes: sizes,
             files: files,

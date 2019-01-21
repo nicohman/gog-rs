@@ -128,6 +128,7 @@ pub struct CDEntry {
     pub disk_offset: Option<u64>,
     pub filename: String,
     pub comment: String,
+    pub end_offset: u64,
 }
 impl CDEntry {
     pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
@@ -197,6 +198,7 @@ impl CDEntry {
             disk_offset: disk_offset,
             filename: filename,
             comment: comment,
+            end_offset: 0,
         }
     }
 }
