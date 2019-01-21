@@ -17,16 +17,21 @@ pub struct ToExtract {
     pub data: bool,
 }
 #[derive(Debug)]
+pub enum EOCDOffset {
+    Offset(usize),
+    Offset64(usize),
+}
+#[derive(Debug)]
 pub struct CentralDirectory {
-    header: u32,
-    disk: u16,
-    cd_start_disk: u16,
-    cd_records: u16,
+    pub header: u32,
+    pub disk: u16,
+    pub cd_start_disk: u16,
+    pub cd_records: u16,
     pub total_cd_records: u16,
     pub cd_size: u32,
     pub cd_start_offset: u32,
-    comment_length: u16,
-    comment: String,
+    pub comment_length: u16,
+    pub comment: String,
 }
 impl CentralDirectory {
     pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
@@ -62,38 +67,67 @@ impl CentralDirectory {
 }
 #[derive(Debug)]
 pub struct CentralDirectory64 {
-    header: u32,
-    directory_record_size: u64,
-    version_made_by: u16,
-    version_needed: u16,
-    cd: u32,
+    pub header: u32,
+    pub directory_record_size: u64,
+    pub version_made_by: u16,
+    pub version_needed: u16,
+    pub cd: u32,
     pub cd_start: u32,
-    cd_total_disk: u64,
+    pub cd_total_disk: u64,
     pub cd_total: u64,
     pub cd_size: u64,
-    cd_offset: u64,
+    pub cd_offset: u64,
+}
+
+impl CentralDirectory64 {
+    pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
+        let header = read_32(&mut reader);
+        let directory_record_size = read_64(&mut reader);
+        let version_made_by = read_16(&mut reader);
+        let version_needed = read_16(&mut reader);
+        let cd = read_32(&mut reader);
+        let cd_start = read_32(&mut reader);
+        let cd_total_disk = read_64(&mut reader);
+        let cd_total = read_64(&mut reader);
+
+        let cd_size = read_64(&mut reader);
+
+        let cd_offset = read_64(&mut reader);
+        CentralDirectory64 {
+            header: header,
+            directory_record_size: directory_record_size,
+            version_made_by: version_made_by,
+            version_needed: version_needed,
+            cd: cd,
+            cd_start: cd_start,
+            cd_total_disk: cd_total_disk,
+            cd_total: cd_total,
+            cd_size: cd_size,
+            cd_offset: cd_offset,
+        }
+    }
 }
 #[derive(Debug)]
 pub struct CDEntry {
-    header: u32,
-    version_made_by: Option<u16>,
-    version_needed: u16,
-    flag: u16,
-    compression_method: u16,
-    mod_date: u16,
-    mod_time: u16,
-    crc32: u32,
-    comp_size: u64,
-    uncomp_size: u64,
-    filename_length: u16,
-    extra_length: u16,
-    comment_length: Option<u16>,
-    disk_num: Option<u32>,
-    internal_file_attr: Option<u16>,
-    external_file_attr: Option<u32>,
-    disk_offset: Option<u64>,
-    filename: String,
-    comment: String,
+    pub header: u32,
+    pub version_made_by: Option<u16>,
+    pub version_needed: u16,
+    pub flag: u16,
+    pub compression_method: u16,
+    pub mod_date: u16,
+    pub mod_time: u16,
+    pub crc32: u32,
+    pub comp_size: u64,
+    pub uncomp_size: u64,
+    pub filename_length: u16,
+    pub extra_length: u16,
+    pub comment_length: Option<u16>,
+    pub disk_num: Option<u32>,
+    pub internal_file_attr: Option<u16>,
+    pub external_file_attr: Option<u32>,
+    pub disk_offset: Option<u64>,
+    pub filename: String,
+    pub comment: String,
 }
 impl CDEntry {
     pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
@@ -129,7 +163,6 @@ impl CDEntry {
         if filename_length > 0 {
             let mut buffer = vec![0; filename_length as usize];
             reader.read_exact(&mut buffer).unwrap();
-            println!("{}-{}", buffer.len(), filename_length);
             filename = String::from_utf8_lossy(&buffer.to_vec()).to_string();
         }
         if extra_length > 0 {
@@ -167,39 +200,7 @@ impl CDEntry {
         }
     }
 }
-#[derive(Debug)]
-pub enum EOCDOffset {
-    Offset(usize),
-    Offset64(usize),
-}
-impl CentralDirectory64 {
-    pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
-        let header = read_32(&mut reader);
-        let directory_record_size = read_64(&mut reader);
-        let version_made_by = read_16(&mut reader);
-        let version_needed = read_16(&mut reader);
-        let cd = read_32(&mut reader);
-        let cd_start = read_32(&mut reader);
-        let cd_total_disk = read_64(&mut reader);
-        let cd_total = read_64(&mut reader);
 
-        let cd_size = read_64(&mut reader);
-
-        let cd_offset = read_64(&mut reader);
-        CentralDirectory64 {
-            header: header,
-            directory_record_size: directory_record_size,
-            version_made_by: version_made_by,
-            version_needed: version_needed,
-            cd: cd,
-            cd_start: cd_start,
-            cd_total_disk: cd_total_disk,
-            cd_total: cd_total,
-            cd_size: cd_size,
-            cd_offset: cd_offset,
-        }
-    }
-}
 fn read_16<R: Read>(reader: &mut BufReader<R>) -> u16 {
     let mut buffer = [0; 2];
     reader.read_exact(&mut buffer).unwrap();

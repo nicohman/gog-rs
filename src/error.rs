@@ -7,6 +7,7 @@ error_chain! {
         Io(::std::io::Error);
         Network(::reqwest::Error);
         Parse(::serde_json::error::Error);
+        Curl(::curl::Error);
     }
     errors {
         ExpiredToken {

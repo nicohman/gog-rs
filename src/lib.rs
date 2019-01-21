@@ -565,7 +565,7 @@ impl Gog {
             "items",
         )
     }
-    fn get_sizes<R: Read>(&self, bufreader: &mut BufReader<R>) -> (usize, usize) {
+    fn get_sizes<R: Read>(&self, bufreader: &mut BufReader<R>) -> Result<(usize, usize)> {
         let mut buffer = String::new();
         let mut script_size = 0;
         let mut script_bytes = 0;
@@ -580,12 +580,6 @@ impl Gog {
             if script_size != 0 && script_size > i {
                 script += &buffer;
             } else if script_size != 0 && script_size <= i && filesize != 0 {
-                println!(
-                    "ss{}{}{}",
-                    script_size,
-                    script.as_bytes().len(),
-                    script_bytes
-                );
                 break;
             }
             if script_size == 0 {
@@ -608,30 +602,29 @@ impl Gog {
             }
             i += 1;
         }
-        (script_bytes, filesize)
+        Ok((script_bytes, filesize))
     }
+    /// Downloads a file partially
     fn download_request_range(&self, url: &str, start: i64, end: i64) -> Result<Vec<u8>> {
         let mut url = url.to_string();
         let mut easy = Easy2::new(Collector(Vec::new()));
-        easy.url(&url).unwrap();
-        easy.range(&format!("{}-{}", start, end)).unwrap();
-        easy.follow_location(true).unwrap();
+        easy.url(&url)?;
+        easy.range(&format!("{}-{}", start, end))?;
+        easy.follow_location(true)?;
         let mut list = curl::easy::List::new();
-        list.append("CSRF: true").unwrap();
+        list.append("CSRF: true")?;
         list.append(&format!(
             "Authentication: Bearer {}",
             self.token.borrow().access_token
-        ))
-        .unwrap();
-        easy.get(true).unwrap();
-        easy.http_headers(list).unwrap();
-        println!("go");
-        easy.perform().unwrap();
-        println!("go");
+        ))?;
+        easy.get(true)?;
+        easy.http_headers(list)?;
+        easy.perform()?;
         let contents = easy.get_ref();
         Ok(contents.0.clone())
     }
-    pub fn extract_data(&self, downloads: Vec<Download>) -> Vec<CDEntry> {
+    /// Extracts data on downloads
+    pub fn extract_data(&self, downloads: Vec<Download>) -> Result<(String, Vec<CDEntry>)> {
         let mut url = BASE.to_string() + &downloads[0].manual_url;
         let mut response;
         loop {
@@ -653,20 +646,19 @@ impl Gog {
             }
         }
         let mut downloads = self.download_game(downloads);
-        let response = downloads.remove(0).unwrap();
+        let response = downloads.remove(0).expect("Couldn't get download");
         let size = response
             .headers()
             .get(CONTENT_LENGTH)
             .unwrap()
             .to_str()
-            .unwrap()
+            .expect("Couldn't convert to string")
             .parse()
             .unwrap();
         let mut bufreader = BufReader::new(response);
-        let sizes = self.get_sizes(&mut bufreader);
-        println!("SIZES{:?}", sizes);
+        let sizes = self.get_sizes(&mut bufreader)?;
         let offset = sizes.0 + sizes.1;
-        let eocd_offset = self.get_eocd_offset(&url, size).unwrap();
+        let eocd_offset = self.get_eocd_offset(&url, size)?;
         let mut off = 0;
         match eocd_offset {
             EOCDOffset::Offset(offset) => {
@@ -679,7 +671,7 @@ impl Gog {
         let mut cd_offset = 0;
         let mut records = 0;
         let mut cd_size = 0;
-        let mut central_directory = self.download_request_range(&url, off as i64, size).unwrap();
+        let mut central_directory = self.download_request_range(&url, off as i64, size)?;
         let mut cd_slice = central_directory.as_slice();
         let mut cd_reader = BufReader::new(&mut cd_slice);
         match eocd_offset {
@@ -688,17 +680,14 @@ impl Gog {
                 cd_offset = cd.cd_start_offset as u64;
                 records = cd.total_cd_records as u64;
                 cd_size = cd.cd_size as u64;
-                println!("{:?}", cd);
             }
             EOCDOffset::Offset64(..) => {
                 let cd = CentralDirectory64::from_reader(&mut cd_reader);
                 cd_offset = cd.cd_start as u64;
                 records = cd.cd_total;
                 cd_size = cd.cd_size as u64;
-                println!("{:?}", cd);
             }
         };
-        println!("{}", size);
         let mut offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
         let mut cd = self
             .download_request_range(
@@ -711,41 +700,34 @@ impl Gog {
         let mut full_reader = BufReader::new(&mut slice);
         let mut files = vec![];
         for i in 0..records {
-            println!("{}", i);
             let entry = CDEntry::from_reader(&mut full_reader);
-            println!("{:?}", entry);
             files.push(entry);
         }
-        println!("{:?}", files);
-        files
+        Ok((url.clone(), files))
     }
-    fn get_eocd_offset(&self, url: &str, size: i64) -> Option<EOCDOffset> {
+    /// Gets the EOCD offset from an url
+    fn get_eocd_offset(&self, url: &str, size: i64) -> Result<EOCDOffset> {
         let signature = 0x06054b50;
         let signature_64 = 0x06064b50;
         let mut offset = 0;
         let mut inter = [0; 4];
         let mut easy = Easy::new();
         for i in 4..size + 1 {
-            println!("{}", i);
             let pos = size - i;
-            println!("Requesting");
-            println!("{}{}{}", url, pos, pos + 4);
-            let resp = self.download_request_range(url, pos, pos + 4).unwrap();
-            println!("Requested");
+            let resp = self.download_request_range(url, pos, pos + 4)?;
             let cur = pos + 4;
             let inte = vec_to_u32(&resp);
-            println!("{}-{}-{}", inte, signature, signature_64);
             if inte == signature {
                 offset = cur;
                 offset -= 4;
-                return Some(EOCDOffset::Offset(offset as usize));
+                return Ok(EOCDOffset::Offset(offset as usize));
             } else if inte == signature_64 {
                 offset = cur;
                 offset -= 4;
-                return Some(EOCDOffset::Offset64(offset as usize));
+                return Ok(EOCDOffset::Offset64(offset as usize));
             }
         }
-        None
+        Err(NotAvailable.into())
     }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String> {
