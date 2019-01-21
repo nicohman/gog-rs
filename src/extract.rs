@@ -216,6 +216,13 @@ fn read_64<R: Read>(reader: &mut BufReader<R>) -> u64 {
     reader.read_exact(&mut buffer).unwrap();
     u64::from_le_bytes(buffer)
 }
+#[derive(Debug)]
+pub struct ZipData {
+    pub url: String,
+    pub files: Vec<CDEntry>,
+    pub sizes: (usize, usize),
+    pub cd: Option<CentralDirectory>,
+}
 /// When given a file descriptor for a GOG Game installer and output directory, extracts out the different parts of it as unpacker.sh, mojosetup.tar.gz, and data.zip.
 pub fn extract<N>(in_file: &mut File, out_string: N, extract: ToExtract) -> Result<()>
 where

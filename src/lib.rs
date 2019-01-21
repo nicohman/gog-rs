@@ -624,7 +624,7 @@ impl Gog {
         Ok(contents.0.clone())
     }
     /// Extracts data on downloads
-    pub fn extract_data(&self, downloads: Vec<Download>) -> Result<(String, Vec<CDEntry>)> {
+    pub fn extract_data(&self, downloads: Vec<Download>) -> Result<ZipData> {
         let mut url = BASE.to_string() + &downloads[0].manual_url;
         let mut response;
         loop {
@@ -703,7 +703,12 @@ impl Gog {
             let entry = CDEntry::from_reader(&mut full_reader);
             files.push(entry);
         }
-        Ok((url.clone(), files))
+        Ok(ZipData {
+            sizes: sizes,
+            files: files,
+            url: url.clone(),
+            cd: None,
+        })
     }
     /// Gets the EOCD offset from an url
     fn get_eocd_offset(&self, url: &str, size: i64) -> Result<EOCDOffset> {
