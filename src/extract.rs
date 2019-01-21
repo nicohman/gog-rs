@@ -129,6 +129,7 @@ pub struct CDEntry {
     pub filename: String,
     pub comment: String,
     pub end_offset: u64,
+    pub start_offset: u64,
 }
 impl CDEntry {
     pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
@@ -199,6 +200,7 @@ impl CDEntry {
             filename: filename,
             comment: comment,
             end_offset: 0,
+            start_offset: 0,
         }
     }
 }

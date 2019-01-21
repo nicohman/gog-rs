@@ -700,13 +700,14 @@ impl Gog {
         let mut full_reader = BufReader::new(&mut slice);
         let mut files = vec![];
         for i in 0..records {
-            let entry = CDEntry::from_reader(&mut full_reader);
+            let mut entry = CDEntry::from_reader(&mut full_reader);
+            entry.start_offset = (sizes.0 + sizes.1) as u64 + entry.disk_offset.unwrap();
             files.push(entry);
         }
         let len = files.len();
         files[len - 1].end_offset = offset_beg as u64 - 1;
         for i in 0..(len - 1) {
-            files[i].end_offset = files[i + 1].disk_offset.unwrap() + (sizes.0 + sizes.1) as u64;
+            files[i].end_offset = files[i + 1].start_offset;
         }
         Ok(ZipData {
             sizes: sizes,
