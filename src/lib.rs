@@ -605,7 +605,7 @@ impl Gog {
         Ok((script_bytes, filesize))
     }
     /// Downloads a file partially
-    fn download_request_range(&self, url: &str, start: i64, end: i64) -> Result<Vec<u8>> {
+    pub fn download_request_range(&self, url: &str, start: i64, end: i64) -> Result<Vec<u8>> {
         let mut url = url.to_string();
         let mut easy = Easy2::new(Collector(Vec::new()));
         easy.url(&url)?;
