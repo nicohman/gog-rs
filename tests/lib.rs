@@ -120,6 +120,12 @@ fn friends() {
     gog.friends().unwrap();
 }
 #[test]
+fn extract_data() {
+    let gog = get_gog();
+    let details = gog.get_game_details(1429698467).unwrap();
+    let data = gog.extract_data(details.downloads.linux.unwrap());
+}
+#[test]
 #[ignore]
 fn extract() {
     use gog::extract::*;

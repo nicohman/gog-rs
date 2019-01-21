@@ -7,6 +7,9 @@ extern crate serde_derive;
 extern crate serde_json;
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
+extern crate log;
+extern crate curl;
 extern crate regex;
 extern crate reqwest;
 extern crate serde;
@@ -21,18 +24,27 @@ pub mod gog;
 pub mod token;
 use connect::*;
 use containers::*;
+use curl::easy::Easy;
+use curl::easy::{Easy2, Handler, WriteError};
 use domains::*;
 /// Main error for GOG calls
 pub use error::Error;
 pub use error::ErrorKind;
 pub use error::Result;
+use extract::EOCDOffset::*;
+use extract::*;
 use gog::*;
 use product::*;
+use regex::*;
+use reqwest::header::*;
 use reqwest::RedirectPolicy;
 use reqwest::{Client, Method, Response};
 use serde::de::DeserializeOwned;
 use serde_json::value::{Map, Value};
 use std::cell::RefCell;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::Read;
 use token::Token;
 use ErrorKind::*;
 const GET: Method = Method::GET;
@@ -553,6 +565,188 @@ impl Gog {
             "items",
         )
     }
+    fn get_sizes<R: Read>(&self, bufreader: &mut BufReader<R>) -> (usize, usize) {
+        let mut buffer = String::new();
+        let mut script_size = 0;
+        let mut script_bytes = 0;
+        let mut script = String::new();
+        let mut i = 1;
+        let mut filesize = 0;
+        let filesize_reg = Regex::new(r#"filesizes="(\d+)"#).unwrap();
+        let offset_reg = Regex::new(r"offset=`head -n (\d+)").unwrap();
+        loop {
+            let read = bufreader.read_line(&mut buffer).unwrap();
+            script_bytes += read;
+            if script_size != 0 && script_size > i {
+                script += &buffer;
+            } else if script_size != 0 && script_size <= i && filesize != 0 {
+                println!(
+                    "ss{}{}{}",
+                    script_size,
+                    script.as_bytes().len(),
+                    script_bytes
+                );
+                break;
+            }
+            if script_size == 0 {
+                let captures = offset_reg.captures(&buffer);
+                if captures.is_some() {
+                    let un = captures.unwrap();
+                    if un.len() > 1 {
+                        script_size = un[1].to_string().parse().unwrap();
+                    }
+                }
+            }
+            if filesize == 0 {
+                let captures = filesize_reg.captures(&buffer);
+                if captures.is_some() {
+                    let un = captures.unwrap();
+                    if un.len() > 1 {
+                        filesize = un[1].to_string().parse().unwrap();
+                    }
+                }
+            }
+            i += 1;
+        }
+        (script_bytes, filesize)
+    }
+    fn download_request_range(&self, url: &str, start: i64, end: i64) -> Result<Vec<u8>> {
+        let mut url = url.to_string();
+        let mut easy = Easy2::new(Collector(Vec::new()));
+        easy.url(&url).unwrap();
+        easy.range(&format!("{}-{}", start, end)).unwrap();
+        easy.follow_location(true).unwrap();
+        let mut list = curl::easy::List::new();
+        list.append("CSRF: true").unwrap();
+        list.append(&format!(
+            "Authentication: Bearer {}",
+            self.token.borrow().access_token
+        ))
+        .unwrap();
+        easy.get(true).unwrap();
+        easy.http_headers(list).unwrap();
+        println!("go");
+        easy.perform().unwrap();
+        println!("go");
+        let contents = easy.get_ref();
+        Ok(contents.0.clone())
+    }
+    pub fn extract_data(&self, downloads: Vec<Download>) -> Vec<CDEntry> {
+        let mut url = BASE.to_string() + &downloads[0].manual_url;
+        let mut response;
+        loop {
+            let temp_response = self.client_noredirect.borrow().get(&url).send();
+            if temp_response.is_ok() {
+                response = temp_response.unwrap();
+                let headers = response.headers();
+                // GOG appears to be inconsistent with returning either 301/302, so this just checks for a redirect location.
+                if headers.contains_key("location") {
+                    url = headers
+                        .get("location")
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string();
+                } else {
+                    break;
+                }
+            }
+        }
+        let mut downloads = self.download_game(downloads);
+        let response = downloads.remove(0).unwrap();
+        let size = response
+            .headers()
+            .get(CONTENT_LENGTH)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let mut bufreader = BufReader::new(response);
+        let sizes = self.get_sizes(&mut bufreader);
+        println!("SIZES{:?}", sizes);
+        let offset = sizes.0 + sizes.1;
+        let eocd_offset = self.get_eocd_offset(&url, size).unwrap();
+        let mut off = 0;
+        match eocd_offset {
+            EOCDOffset::Offset(offset) => {
+                off = offset;
+            }
+            EOCDOffset::Offset64(offset) => {
+                off = offset;
+            }
+        };
+        let mut cd_offset = 0;
+        let mut records = 0;
+        let mut cd_size = 0;
+        let mut central_directory = self.download_request_range(&url, off as i64, size).unwrap();
+        let mut cd_slice = central_directory.as_slice();
+        let mut cd_reader = BufReader::new(&mut cd_slice);
+        match eocd_offset {
+            EOCDOffset::Offset(..) => {
+                let cd = CentralDirectory::from_reader(&mut cd_reader);
+                cd_offset = cd.cd_start_offset as u64;
+                records = cd.total_cd_records as u64;
+                cd_size = cd.cd_size as u64;
+                println!("{:?}", cd);
+            }
+            EOCDOffset::Offset64(..) => {
+                let cd = CentralDirectory64::from_reader(&mut cd_reader);
+                cd_offset = cd.cd_start as u64;
+                records = cd.cd_total;
+                cd_size = cd.cd_size as u64;
+                println!("{:?}", cd);
+            }
+        };
+        println!("{}", size);
+        let mut offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
+        let mut cd = self
+            .download_request_range(
+                &url,
+                offset_beg as i64,
+                (offset_beg + cd_size as usize) as i64,
+            )
+            .unwrap();
+        let mut slice = cd.as_slice();
+        let mut full_reader = BufReader::new(&mut slice);
+        let mut files = vec![];
+        for i in 0..records {
+            println!("{}", i);
+            let entry = CDEntry::from_reader(&mut full_reader);
+            println!("{:?}", entry);
+            files.push(entry);
+        }
+        println!("{:?}", files);
+        files
+    }
+    fn get_eocd_offset(&self, url: &str, size: i64) -> Option<EOCDOffset> {
+        let signature = 0x06054b50;
+        let signature_64 = 0x06064b50;
+        let mut offset = 0;
+        let mut inter = [0; 4];
+        let mut easy = Easy::new();
+        for i in 4..size + 1 {
+            println!("{}", i);
+            let pos = size - i;
+            println!("Requesting");
+            println!("{}{}{}", url, pos, pos + 4);
+            let resp = self.download_request_range(url, pos, pos + 4).unwrap();
+            println!("Requested");
+            let cur = pos + 4;
+            let inte = vec_to_u32(&resp);
+            println!("{}-{}-{}", inte, signature, signature_64);
+            if inte == signature {
+                offset = cur;
+                offset -= 4;
+                return Some(EOCDOffset::Offset(offset as usize));
+            } else if inte == signature_64 {
+                offset = cur;
+                offset -= 4;
+                return Some(EOCDOffset::Offset64(offset as usize));
+            }
+        }
+        None
+    }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String> {
     return Ok(acc + "," + now);
@@ -563,4 +757,15 @@ fn bool_to_int(b: bool) -> i32 {
         par = 1;
     }
     return par;
+}
+fn vec_to_u32(data: &Vec<u8>) -> u32 {
+    u32::from_le_bytes([data[0], data[1], data[2], data[3]])
+}
+struct Collector(Vec<u8>);
+
+impl Handler for Collector {
+    fn write(&mut self, data: &[u8]) -> std::result::Result<usize, WriteError> {
+        self.0.extend_from_slice(data);
+        Ok(data.len())
+    }
 }
