@@ -604,24 +604,35 @@ impl Gog {
         }
         Ok((script_bytes, filesize))
     }
-    /// Downloads a file partially
-    pub fn download_request_range(&self, url: &str, start: i64, end: i64) -> Result<Vec<u8>> {
-        let mut url = url.to_string();
+    /// Downloadds a file parttally, using only access token instead of the full Gog struct
+    pub fn download_request_range_at<N: Into<String>, M: Into<String>>(
+        at: N,
+        url: M,
+        start: i64,
+        end: i64,
+    ) -> Result<Vec<u8>> {
+        let mut url = url.into();
         let mut easy = Easy2::new(Collector(Vec::new()));
         easy.url(&url)?;
         easy.range(&format!("{}-{}", start, end))?;
         easy.follow_location(true)?;
         let mut list = curl::easy::List::new();
         list.append("CSRF: true")?;
-        list.append(&format!(
-            "Authentication: Bearer {}",
-            self.token.borrow().access_token
-        ))?;
+        list.append(&format!("Authentication: Bearer {}", at.into()))?;
         easy.get(true)?;
         easy.http_headers(list)?;
         easy.perform()?;
         let contents = easy.get_ref();
         Ok(contents.0.clone())
+    }
+    /// Downloads a file partially
+    pub fn download_request_range<N: Into<String>>(
+        &self,
+        url: N,
+        start: i64,
+        end: i64,
+    ) -> Result<Vec<u8>> {
+        Gog::download_request_range_at(self.token.borrow().access_token.as_str(), url, start, end)
     }
     /// Extracts data on downloads
     pub fn extract_data(&self, downloads: Vec<Download>) -> Result<ZipData> {
@@ -671,7 +682,7 @@ impl Gog {
         let mut cd_offset = 0;
         let mut records = 0;
         let mut cd_size = 0;
-        let mut central_directory = self.download_request_range(&url, off as i64, size)?;
+        let mut central_directory = self.download_request_range(url.as_str(), off as i64, size)?;
         let mut cd_slice = central_directory.as_slice();
         let mut cd_reader = BufReader::new(&mut cd_slice);
         match eocd_offset {
@@ -691,7 +702,7 @@ impl Gog {
         let mut offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
         let mut cd = self
             .download_request_range(
-                &url,
+                url.as_str(),
                 offset_beg as i64,
                 (offset_beg + cd_size as usize) as i64,
             )
