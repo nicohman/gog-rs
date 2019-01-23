@@ -605,14 +605,15 @@ impl Gog {
         Ok((script_bytes, filesize))
     }
     /// Downloadds a file parttally, using only access token instead of the full Gog struct
-    pub fn download_request_range_at<N: Into<String>, M: Into<String>>(
-        at: N,
-        url: M,
+    pub fn download_request_range_at<H: Handler>(
+        at: impl Into<String>,
+        url: impl Into<String>,
+        handler: H,
         start: i64,
         end: i64,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<Easy2<H>> {
         let mut url = url.into();
-        let mut easy = Easy2::new(Collector(Vec::new()));
+        let mut easy = Easy2::new(handler);
         easy.url(&url)?;
         easy.range(&format!("{}-{}", start, end))?;
         easy.follow_location(true)?;
@@ -622,17 +623,25 @@ impl Gog {
         easy.get(true)?;
         easy.http_headers(list)?;
         easy.perform()?;
-        let contents = easy.get_ref();
-        Ok(contents.0.clone())
+        Ok(easy)
     }
     /// Downloads a file partially
-    pub fn download_request_range<N: Into<String>>(
+    pub fn download_request_range(
         &self,
-        url: N,
+        url: impl Into<String>,
         start: i64,
         end: i64,
     ) -> Result<Vec<u8>> {
-        Gog::download_request_range_at(self.token.borrow().access_token.as_str(), url, start, end)
+        Ok(Gog::download_request_range_at(
+            self.token.borrow().access_token.as_str(),
+            url,
+            Collector(Vec::new()),
+            start,
+            end,
+        )?
+        .get_ref()
+        .0
+        .clone())
     }
     /// Extracts data on downloads
     pub fn extract_data(&self, downloads: Vec<Download>) -> Result<ZipData> {
@@ -765,7 +774,8 @@ fn bool_to_int(b: bool) -> i32 {
 fn vec_to_u32(data: &Vec<u8>) -> u32 {
     u32::from_le_bytes([data[0], data[1], data[2], data[3]])
 }
-struct Collector(Vec<u8>);
+/// A simple curl handler for a vector of bytes
+pub struct Collector(Vec<u8>);
 
 impl Handler for Collector {
     fn write(&mut self, data: &[u8]) -> std::result::Result<usize, WriteError> {
