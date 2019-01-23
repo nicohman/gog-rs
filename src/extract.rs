@@ -135,9 +135,6 @@ impl CDEntry {
     pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
         let mut is_local = false;
         let header = read_32(&mut reader);
-        if header != 0x02014b50 {
-            println!("niifdhsaf");
-        }
         is_local = false;
         let mut version_made_by = None;
         version_made_by = Some(read_16(&mut reader));
@@ -250,7 +247,6 @@ where
     for _i in 0..lines {
         script_size += buf_in_file.read_line(&mut dump)? as u64;
     }
-    println!("{}", script_size);
     buf_in_file.seek(Start(0))?;
     let mut script_bin = vec![0u8; script_size as usize];
     buf_in_file.read_exact(&mut script_bin)?;
