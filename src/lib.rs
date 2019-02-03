@@ -775,7 +775,7 @@ fn vec_to_u32(data: &Vec<u8>) -> u32 {
     u32::from_le_bytes([data[0], data[1], data[2], data[3]])
 }
 /// A simple curl handler for a vector of bytes
-pub struct Collector(Vec<u8>);
+pub struct Collector(pub Vec<u8>);
 
 impl Handler for Collector {
     fn write(&mut self, data: &[u8]) -> std::result::Result<usize, WriteError> {
