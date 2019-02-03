@@ -644,97 +644,102 @@ impl Gog {
         .clone())
     }
     /// Extracts data on downloads
-    pub fn extract_data(&self, downloads: Vec<Download>) -> Result<ZipData> {
-        let mut url = BASE.to_string() + &downloads[0].manual_url;
-        let mut response;
-        loop {
-            let temp_response = self.client_noredirect.borrow().get(&url).send();
-            if temp_response.is_ok() {
-                response = temp_response.unwrap();
-                let headers = response.headers();
-                // GOG appears to be inconsistent with returning either 301/302, so this just checks for a redirect location.
-                if headers.contains_key("location") {
-                    url = headers
-                        .get("location")
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_string();
-                } else {
-                    break;
+    pub fn extract_data(&self, downloads: Vec<Download>) -> Result<Vec<ZipData>> {
+        let mut zips = vec![];
+        let mut responses = self.download_game(downloads.clone());
+        for down in downloads {
+            let mut url = BASE.to_string() + &down.manual_url;
+            let mut response;
+            loop {
+                let temp_response = self.client_noredirect.borrow().get(&url).send();
+                if temp_response.is_ok() {
+                    response = temp_response.unwrap();
+                    let headers = response.headers();
+                    // GOG appears to be inconsistent with returning either 301/302, so this just checks for a redirect location.
+                    if headers.contains_key("location") {
+                        url = headers
+                            .get("location")
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_string();
+                    } else {
+                        break;
+                    }
                 }
             }
+            let response = responses.remove(0).expect("Couldn't get download");
+            let size = response
+                .headers()
+                .get(CONTENT_LENGTH)
+                .unwrap()
+                .to_str()
+                .expect("Couldn't convert to string")
+                .parse()
+                .unwrap();
+            let mut bufreader = BufReader::new(response);
+            let sizes = self.get_sizes(&mut bufreader)?;
+            let offset = sizes.0 + sizes.1;
+            let eocd_offset = self.get_eocd_offset(&url, size)?;
+            let mut off = 0;
+            match eocd_offset {
+                EOCDOffset::Offset(offset) => {
+                    off = offset;
+                }
+                EOCDOffset::Offset64(offset) => {
+                    off = offset;
+                }
+            };
+            let mut cd_offset = 0;
+            let mut records = 0;
+            let mut cd_size = 0;
+            let mut central_directory =
+                self.download_request_range(url.as_str(), off as i64, size)?;
+            let mut cd_slice = central_directory.as_slice();
+            let mut cd_reader = BufReader::new(&mut cd_slice);
+            match eocd_offset {
+                EOCDOffset::Offset(..) => {
+                    let cd = CentralDirectory::from_reader(&mut cd_reader);
+                    cd_offset = cd.cd_start_offset as u64;
+                    records = cd.total_cd_records as u64;
+                    cd_size = cd.cd_size as u64;
+                }
+                EOCDOffset::Offset64(..) => {
+                    let cd = CentralDirectory64::from_reader(&mut cd_reader);
+                    cd_offset = cd.cd_start as u64;
+                    records = cd.cd_total;
+                    cd_size = cd.cd_size as u64;
+                }
+            };
+            let mut offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
+            let mut cd = self
+                .download_request_range(
+                    url.as_str(),
+                    offset_beg as i64,
+                    (offset_beg + cd_size as usize) as i64,
+                )
+                .unwrap();
+            let mut slice = cd.as_slice();
+            let mut full_reader = BufReader::new(&mut slice);
+            let mut files = vec![];
+            for i in 0..records {
+                let mut entry = CDEntry::from_reader(&mut full_reader);
+                entry.start_offset = (sizes.0 + sizes.1) as u64 + entry.disk_offset.unwrap();
+                files.push(entry);
+            }
+            let len = files.len();
+            files[len - 1].end_offset = offset_beg as u64 - 1;
+            for i in 0..(len - 1) {
+                files[i].end_offset = files[i + 1].start_offset;
+            }
+            zips.push(ZipData {
+                sizes: sizes,
+                files: files,
+                url: url.clone(),
+                cd: None,
+            });
         }
-        let mut downloads = self.download_game(downloads);
-        let response = downloads.remove(0).expect("Couldn't get download");
-        let size = response
-            .headers()
-            .get(CONTENT_LENGTH)
-            .unwrap()
-            .to_str()
-            .expect("Couldn't convert to string")
-            .parse()
-            .unwrap();
-        let mut bufreader = BufReader::new(response);
-        let sizes = self.get_sizes(&mut bufreader)?;
-        let offset = sizes.0 + sizes.1;
-        let eocd_offset = self.get_eocd_offset(&url, size)?;
-        let mut off = 0;
-        match eocd_offset {
-            EOCDOffset::Offset(offset) => {
-                off = offset;
-            }
-            EOCDOffset::Offset64(offset) => {
-                off = offset;
-            }
-        };
-        let mut cd_offset = 0;
-        let mut records = 0;
-        let mut cd_size = 0;
-        let mut central_directory = self.download_request_range(url.as_str(), off as i64, size)?;
-        let mut cd_slice = central_directory.as_slice();
-        let mut cd_reader = BufReader::new(&mut cd_slice);
-        match eocd_offset {
-            EOCDOffset::Offset(..) => {
-                let cd = CentralDirectory::from_reader(&mut cd_reader);
-                cd_offset = cd.cd_start_offset as u64;
-                records = cd.total_cd_records as u64;
-                cd_size = cd.cd_size as u64;
-            }
-            EOCDOffset::Offset64(..) => {
-                let cd = CentralDirectory64::from_reader(&mut cd_reader);
-                cd_offset = cd.cd_start as u64;
-                records = cd.cd_total;
-                cd_size = cd.cd_size as u64;
-            }
-        };
-        let mut offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
-        let mut cd = self
-            .download_request_range(
-                url.as_str(),
-                offset_beg as i64,
-                (offset_beg + cd_size as usize) as i64,
-            )
-            .unwrap();
-        let mut slice = cd.as_slice();
-        let mut full_reader = BufReader::new(&mut slice);
-        let mut files = vec![];
-        for i in 0..records {
-            let mut entry = CDEntry::from_reader(&mut full_reader);
-            entry.start_offset = (sizes.0 + sizes.1) as u64 + entry.disk_offset.unwrap();
-            files.push(entry);
-        }
-        let len = files.len();
-        files[len - 1].end_offset = offset_beg as u64 - 1;
-        for i in 0..(len - 1) {
-            files[i].end_offset = files[i + 1].start_offset;
-        }
-        Ok(ZipData {
-            sizes: sizes,
-            files: files,
-            url: url.clone(),
-            cd: None,
-        })
+        Ok(zips)
     }
     /// Gets the EOCD offset from an url
     fn get_eocd_offset(&self, url: &str, size: i64) -> Result<EOCDOffset> {

@@ -548,7 +548,7 @@ pub struct Downloads {
     pub linux: Option<Vec<Download>>,
 }
 /// Information on an available build of a game
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Download {
     pub manual_url: String,
