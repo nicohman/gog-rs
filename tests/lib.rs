@@ -36,7 +36,7 @@ fn get_pub_info() {
 #[test]
 fn get_game_details() {
     let gog = get_gog();
-    gog.get_game_details(1452598881).unwrap();
+    gog.get_game_details(1819469826).unwrap();
 }
 
 #[test]

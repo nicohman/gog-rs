@@ -382,7 +382,7 @@ pub struct GameDetails {
     pub text_information: String,
     pub downloads: Downloads,
     pub extras: Vec<Extra>,
-    pub dlcs: Value,
+    pub dlcs: Vec<GameDetails>,
     pub tags: Vec<Tag>,
     pub is_pre_order: bool,
     pub release_timestamp: i64,

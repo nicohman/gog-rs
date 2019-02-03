@@ -13,7 +13,7 @@ pub struct GameDetailsP {
     pub text_information: String,
     pub downloads: Vec<Vec<Value>>,
     pub extras: Vec<Extra>,
-    pub dlcs: Value,
+    pub dlcs: Vec<GameDetailsP>,
     pub tags: Vec<Tag>,
     pub is_pre_order: bool,
     pub release_timestamp: i64,
@@ -25,23 +25,31 @@ pub struct GameDetailsP {
 }
 impl GameDetailsP {
     // Yes, this is bad. Yes, I am sorry.
-    pub fn to_details(&mut self, down: Downloads) -> GameDetails {
+    pub fn to_details(self, down: Downloads) -> GameDetails {
         return GameDetails {
-            title: self.title.clone(),
-            background_image: self.background_image.clone(),
-            cd_key: self.cd_key.clone(),
-            text_information: self.text_information.clone(),
+            title: self.title,
+            background_image: self.background_image,
+            cd_key: self.cd_key,
+            text_information: self.text_information,
             downloads: down,
-            extras: self.extras.clone(),
-            dlcs: self.dlcs.clone(),
-            tags: self.tags.clone(),
-            is_pre_order: self.is_pre_order.clone(),
-            release_timestamp: self.release_timestamp.clone(),
-            messages: self.messages.clone(),
-            changelog: self.changelog.clone(),
-            forum_link: self.forum_link.clone(),
-            is_base_product_missing: self.is_base_product_missing.clone(),
-            missing_base_product: self.missing_base_product.clone(),
+            extras: self.extras,
+            dlcs: self
+                .dlcs
+                .into_iter()
+                .map(|mut x| {
+                    x.downloads[0].remove(0);
+                    let stri = serde_json::to_string(&x.downloads[0][0]).unwrap();
+                    x.to_details(serde_json::from_str(&stri).unwrap())
+                })
+                .collect(),
+            tags: self.tags,
+            is_pre_order: self.is_pre_order,
+            release_timestamp: self.release_timestamp,
+            messages: self.messages,
+            changelog: self.changelog,
+            forum_link: self.forum_link,
+            is_base_product_missing: self.is_base_product_missing,
+            missing_base_product: self.missing_base_product,
         };
     }
 }
