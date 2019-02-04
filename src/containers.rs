@@ -36,10 +36,14 @@ impl GameDetailsP {
             dlcs: self
                 .dlcs
                 .into_iter()
-                .map(|mut x| {
-                    x.downloads[0].remove(0);
-                    let stri = serde_json::to_string(&x.downloads[0][0]).unwrap();
-                    x.to_details(serde_json::from_str(&stri).unwrap())
+                .filter_map(|mut x| {
+                    if x.downloads.len() > 0 {
+                        x.downloads[0].remove(0);
+                        let stri = serde_json::to_string(&x.downloads[0][0]).unwrap();
+                        Some(x.to_details(serde_json::from_str(&stri).unwrap()))
+                    } else {
+                        None
+                    }
                 })
                 .collect(),
             tags: self.tags,
