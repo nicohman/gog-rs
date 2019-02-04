@@ -59,8 +59,8 @@ macro_rules! map_p {
 /// The main GOG Struct that you'll use to make API calls.
 pub struct Gog {
     pub token: RefCell<Token>,
-    client: RefCell<Client>,
-    client_noredirect: RefCell<Client>,
+    pub client: RefCell<Client>,
+    pub client_noredirect: RefCell<Client>,
     pub auto_update: bool,
 }
 impl Gog {
