@@ -77,6 +77,12 @@ fn filtered() {
         .unwrap();
 }
 #[test]
+fn filtered_all() {
+    let gog = get_gog();
+    gog.get_all_filtered_products(FilterParams::from_one(MediaType(1)))
+        .unwrap();
+}
+#[test]
 fn filtered_os() {
     let gog = get_gog();
     gog.get_filtered_products(FilterParams::from_one(OS(Linux)))

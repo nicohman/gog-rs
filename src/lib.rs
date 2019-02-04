@@ -455,7 +455,7 @@ impl Gog {
         )
     }
     /// Fetches info about a set of products owned by the user based on search criteria
-    pub fn get_filtered_products(&self, params: FilterParams) -> Result<Vec<ProductDetails>> {
+    pub fn get_filtered_products(&self, params: FilterParams) -> Result<FilteredProducts> {
         //GOG.com url is just to avoid "cannot be a base" url parse error, as we only need the path anyways
         let url = reqwest::Url::parse(
             &("https://gog.com/account/getFilteredProducts".to_string()
@@ -463,7 +463,29 @@ impl Gog {
         )
         .unwrap();
         let path = url.path().to_string() + "?" + url.query().unwrap();
-        self.nfget(EMBD, &path, None, "products")
+        self.fget(EMBD, &path, None)
+    }
+    /// Fetches info about all products matching criteria
+    pub fn get_all_filtered_products(&self, params: FilterParams) -> Result<Vec<ProductDetails>> {
+        let url = reqwest::Url::parse(
+            &("https://gog.com/account/getFilteredProducts".to_string()
+                + &params.to_query_string()),
+        )
+        .unwrap();
+        let mut page = 1;
+        let path = url.path().to_string() + "?" + url.query().unwrap();
+        let mut products = vec![];
+        loop {
+            let res: FilteredProducts =
+                self.fget(EMBD, &format!("{}&page={}", path, page), None)?;
+            products.push(res.products);
+            if res.page <= page {
+                break;
+            } else {
+                page += 1;
+            }
+        }
+        Ok(products.into_iter().flatten().collect())
     }
     /// Fetches info about a set of products based on search criteria
     pub fn get_products(&self, params: FilterParams) -> Result<Vec<UnownedProductDetails>> {

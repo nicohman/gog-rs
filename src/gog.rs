@@ -417,6 +417,7 @@ pub enum FilterParam {
     MediaType(i32),
     OS(OS),
     Search(String),
+    Page(i32),
 }
 impl FilterParam {
     pub fn to_string(&self) -> String {
@@ -426,8 +427,18 @@ impl FilterParam {
             // OS filtering only for games, so forces games
             OS(os) => format!("system={}&mediaType=1", os.codes()),
             Search(st) => format!("search={}&mediaType=1", st),
+            Page(num) => format!("page={}", num),
         }
     }
+}
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct FilteredProducts {
+    pub products: Vec<ProductDetails>,
+    pub page: i64,
+    pub total_pages: i64,
+    pub total_products: i64,
+    pub products_per_page: i64,
 }
 /// Details of a product, returned from get_filtered_products
 #[derive(Serialize, Deserialize, Debug)]
