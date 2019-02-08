@@ -1,6 +1,6 @@
 [package]
 name = "gog"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["nicohman <nicohman@demenses.net>"]
 repository = "https://git.sr.ht/~nicohman/gogapi-rs"
 description = "A crate to use the GOG web api"
@@ -15,3 +15,4 @@ error-chain = "0.12.0"
 regex = "1"
 log = "0.4"
 curl = "0.4"
+
