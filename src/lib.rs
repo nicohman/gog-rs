@@ -12,6 +12,7 @@ extern crate log;
 extern crate curl;
 extern crate regex;
 extern crate reqwest;
+extern crate select;
 extern crate serde;
 mod containers;
 /// Provides error-handling logic

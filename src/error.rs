@@ -22,5 +22,9 @@ error_chain! {
             description("not available")
             display("the resource requested is not available")
         }
+        IncorrectCredentials {
+            description("the credentials provided were incorrect")
+            display("the credentials provided were incorrect")
+        }
     }
 }
