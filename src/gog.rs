@@ -392,6 +392,41 @@ pub struct GameDetails {
     pub is_base_product_missing: bool,
     pub missing_base_product: Option<Value>,
 }
+impl GameDetails {
+    pub fn all(self, linux: bool) -> Vec<Download> {
+        let downloads;
+        if linux {
+            downloads = self.downloads.linux.unwrap();
+        } else {
+            downloads = self.downloads.windows.unwrap();
+        }
+        downloads
+            .into_iter()
+            .chain(
+                self.dlcs
+                    .into_iter()
+                    .map(|x| {
+                        let title = x.title.clone();
+                        let mut d;
+                        if linux {
+                            d = x.downloads.linux.unwrap();
+                        } else {
+                            d = x.downloads.windows.unwrap();
+                        }
+                        d = d
+                            .into_iter()
+                            .map(|mut y| {
+                                y.name = title.clone();
+                                y
+                            })
+                            .collect();
+                        d
+                    })
+                    .flatten(),
+            )
+            .collect()
+    }
+}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FilterParams {
     pub params: Vec<FilterParam>,
