@@ -480,7 +480,7 @@ impl Gog {
             let res: FilteredProducts =
                 self.fget(EMBD, &format!("{}&page={}", path, page), None)?;
             products.push(res.products);
-            if res.page <= page {
+            if page >= res.total_pages {
                 break;
             } else {
                 page += 1;
