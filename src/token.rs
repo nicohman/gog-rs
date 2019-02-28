@@ -4,6 +4,10 @@ use reqwest;
 use select::{document::*, predicate::*};
 use serde_json;
 use std::time::SystemTime;
+use user_agent::*;
+fn convert_rsession(err: ::user_agent::ReqwestSessionError) -> crate::error::Error {
+    ErrorKind::SessionNetwork(err).into()
+}
 /// An OAuth token. Will usually expire after an hour.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
@@ -28,14 +32,13 @@ fn cur_date() -> u64 {
 }
 impl Token {
     /// Creates a token from a response from /token
-    pub fn from_response(response: &str) -> Result<Token> {
-        println!("{}", response);
-        Ok(serde_json::from_str(response)?)
+    pub fn from_response(response: impl Into<String>) -> Result<Token> {
+        Ok(serde_json::from_str(response.into().as_str())?)
     }
     /// Fetches a token using a login code
-    pub fn from_login_code(code: &str) -> Result<Token> {
-        let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code+""))?;
-        Token::from_response(&res.text()?)
+    pub fn from_login_code(code: impl Into<String>) -> Result<Token> {
+        let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+""))?;
+        Token::from_response(res.text()?)
     }
     /// Checks if token has expired
     pub fn is_expired(&self) -> bool {
@@ -50,18 +53,23 @@ impl Token {
         let (username, password) = (username.into(), password.into());
         let garegex =
             Regex::new(r"var galaxyAccounts = new GalaxyAccounts\('(.+)','(.+)'\)").unwrap();
-        let client = reqwest::Client::new();
+        let gsregex = Regex::new(r"(galaxy-login-s=.+;) expires").unwrap();
+        let mut client = ReqwestSession::new(reqwest::ClientBuilder::new().build().unwrap());
         info!("Fetching GOG home page to get auth url");
-        let mut result = client.get("https://gog.com").send()?;
-
-        let text = result.text().expect("Couldn't get home page text");
+        let mut result = client.get("https://gog.com").map_err(convert_rsession)?;
+        let text = result
+            .text()
+            .expect("Couldn't get home page text")
+            .to_owned()
+            .to_string();
         if let Some(captures) = garegex.captures(&text) {
             let auth_url = captures[1].to_string();
             println!("Auth URl: {}", auth_url);
             info!("Got URL, requesting auth page");
-            let mut aresult = client.get(&auth_url).send()?;
+            let mut aresult = client.get(&auth_url).map_err(convert_rsession)?;
             info!("Auth page request successful");
             let atext = aresult.text().expect("Couldn't get auth page text");
+            println!("{}", atext);
             let document = Document::from(atext.as_str());
             info!("Checking for captchas");
             let gcaptcha = document.find(Class("g-recaptcha"));
@@ -80,54 +88,34 @@ impl Token {
                     let mut form_parameters = std::collections::HashMap::new();
                     form_parameters.insert("login[username]", username);
                     form_parameters.insert("login[password]", password);
-                    form_parameters.insert("login[login]", "".to_string());
+                    form_parameters.insert("login[login_flow]", "default".to_string());
                     form_parameters.insert("login[_token]", lid);
-                    let mut login_response = client
-                        .post("https://login.gog.com/login")
-                        .form(&form_parameters)
-                        .send()?;
-                    let mut cookie_headers = reqwest::header::HeaderMap::new();
-                    let mut url;
-                    loop {
-                        if login_response.status().is_redirection() {
-                            {
-                                let login_headers = login_response.headers();
-                                for cookie in login_headers.get_all("set-cookie") {
-                                    cookie_headers.append(
-                                        "Cookie",
-                                        reqwest::header::HeaderValue::from_str(&format!(
-                                            "{};",
-                                            cookie.to_str().unwrap()
-                                        ))
-                                        .unwrap(),
-                                    );
-                                }
-                                url = login_headers
-                                    .get("location")
-                                    .unwrap()
-                                    .to_str()
-                                    .unwrap()
-                                    .to_string();
-                            }
-                            login_response =
-                                client.get(&url).headers(cookie_headers.clone()).send()?;
-                        } else {
-                            break;
-                        }
-                    }
+                    let check_url =
+                        reqwest::Url::parse("https://login.gog.com/login_check").unwrap();
+                    let mut request = client
+                        .client
+                        .post_request(&check_url)
+                        .form(&form_parameters);
+                    request = request
+                        .add_cookies(client.store.get_request_cookies(&check_url).collect())
+                        .header(reqwest::header::HOST, "login.gog.com");
+                    println!("{:?}", request);
+                    let mut login_response = request.send()?;
                     let login_text = login_response.text().expect("Couldn't fetch login text");
                     let login_doc = Document::from(login_text.as_str());
                     let mut two_step_search =
                         login_doc.find(Attr("id", "second_step_authentication__token"));
-                    let url = login_response.url();
+                    let url = login_response.url().clone();
                     if let Some(two_node) = two_step_search.next() {
                         info!("Two step authentication token needed.");
+                        println!("Two step token required");
                         let two_token = two_node
                             .attr("value")
                             .expect("No two step token found")
                             .to_string();
                         Err(IncorrectCredentials.into())
                     } else {
+                        println!("{:?}", client.store);
                         if url.as_str().contains("on_login_success") {
                             println!("{:?}", url);
                             let code = url
@@ -136,8 +124,11 @@ impl Token {
                                 .map(|x| x.1)
                                 .next()
                                 .unwrap();
-                            Token::from_login_code(&code)
+                            Token::from_login_code(code)
                         } else {
+                            println!("{:?}", url);
+                            println!("{:?}", login_response);
+                            println!("LOGIN TEXT:{}", login_text);
                             error!("Login failed.");
                             Err(IncorrectCredentials.into())
                         }

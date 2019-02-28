@@ -9,6 +9,7 @@ extern crate serde_json;
 extern crate error_chain;
 #[macro_use]
 extern crate log;
+extern crate user_agent;
 extern crate curl;
 extern crate regex;
 extern crate reqwest;

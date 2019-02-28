@@ -26,5 +26,9 @@ error_chain! {
             description("the credentials provided were incorrect")
             display("the credentials provided were incorrect")
         }
+        SessionNetwork(err: ::user_agent::ReqwestSessionError) {
+            description("session error")
+            display("session error")
+        }
     }
 }
