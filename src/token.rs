@@ -69,7 +69,7 @@ impl Token {
             let mut aresult = client.get(&auth_url).map_err(convert_rsession)?;
             info!("Auth page request successful");
             let atext = aresult.text().expect("Couldn't get auth page text");
-            println!("{}", atext);
+            // println!("{}", atext);
             let document = Document::from(atext.as_str());
             info!("Checking for captchas");
             let gcaptcha = document.find(Class("g-recaptcha"));
@@ -96,12 +96,50 @@ impl Token {
                         .client
                         .post_request(&check_url)
                         .form(&form_parameters);
+                    let mut cookies_processed: Vec<cookie::Cookie> = client
+                        .store
+                        .get_request_cookies(&check_url)
+                        .cloned()
+                        .map(|mut cookie| {
+                            let mut now = time::now();
+                            now.tm_year += 1;
+                            cookie.set_expires(now);
+                            cookie.set_domain("login.gog.com");
+                            cookie
+                        })
+                        .chain(client.store.get_request_cookies(&check_url).cloned().map(
+                            |mut cookie| {
+                                let mut now = time::now();
+                                now.tm_year += 1;
+                                cookie.set_expires(now);
+                                cookie.set_domain("gog.com");
+                                cookie
+                            },
+                        ))
+                        .collect();
                     request = request
-                        .add_cookies(client.store.get_request_cookies(&check_url).collect())
+                        .add_cookies(cookies_processed.iter().collect())
                         .header(reqwest::header::HOST, "login.gog.com");
                     println!("{:?}", request);
                     let mut login_response = request.send()?;
+                    if login_response.status().is_redirection() {
+                        println!("Redirect!");
+                        let mut next_url = login_response
+                            .headers()
+                            .get("Location")
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_string();
+                        login_response = client
+                            .client
+                            .get_request(&reqwest::Url::parse(&next_url).unwrap())
+                            .add_cookies(cookies_processed.iter().collect())
+                            .header(reqwest::header::HOST, "login.gog.com")
+                            .send()?;
+                    }
                     let login_text = login_response.text().expect("Couldn't fetch login text");
+                    println!("{}", login_text);
                     let login_doc = Document::from(login_text.as_str());
                     let mut two_step_search =
                         login_doc.find(Attr("id", "second_step_authentication__token"));
@@ -115,7 +153,7 @@ impl Token {
                             .to_string();
                         Err(IncorrectCredentials.into())
                     } else {
-                        println!("{:?}", client.store);
+                        println!("{:?}", cookies_processed);
                         if url.as_str().contains("on_login_success") {
                             println!("{:?}", url);
                             let code = url
