@@ -491,7 +491,7 @@ pub struct ProductDetails {
     pub is_movie: bool,
     pub is_game: bool,
     pub slug: String,
-    pub updates: i64,
+    pub updates: Option<i64>,
     pub is_new: bool,
     pub is_hidden: bool,
 }
