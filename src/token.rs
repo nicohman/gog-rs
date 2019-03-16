@@ -65,6 +65,7 @@ impl Token {
         let mut result = normal_client
             .get("https://gog.com")
             .map_err(convert_rsession)?;
+        println!("{:?}", result);
         let text = result
             .text()
             .expect("Couldn't get home page text")
@@ -75,6 +76,7 @@ impl Token {
             println!("Auth URl: {}", auth_url);
             info!("Got URL, requesting auth page");
             let mut aresult = normal_client.get(&auth_url).map_err(convert_rsession)?;
+            println!("{:?}", aresult);
             info!("Auth page request successful");
             let atext = aresult.text().expect("Couldn't get auth page text");
             let document = Document::from(atext.as_str());
@@ -100,6 +102,7 @@ impl Token {
                 form_parameters.insert("login[password]", password);
                 form_parameters.insert("login[login]", String::default());
                 form_parameters.insert("login[_token]", lid);
+                println!("{:?}", form_parameters);
                 let check_url = reqwest::Url::parse("https://login.gog.com/login_check").unwrap();
                 let mut request = client
                     .client
@@ -110,9 +113,6 @@ impl Token {
                     .get_request_cookies(&check_url)
                     .cloned()
                     .map(|mut cookie| {
-                        let mut now = time::now();
-                        now.tm_year += 1;
-                        cookie.set_expires(now);
                         cookie.set_domain("login.gog.com");
                         cookie
                     })
@@ -122,10 +122,7 @@ impl Token {
                             .get_request_cookies(&check_url)
                             .cloned()
                             .map(|mut cookie| {
-                                let mut now = time::now();
-                                now.tm_year += 1;
-                                cookie.set_expires(now);
-                                cookie.set_domain("gog.com");
+                                cookie.set_domain(".gog.com");
                                 cookie
                             }),
                     )
@@ -134,7 +131,7 @@ impl Token {
                 println!("{:?}", request);
                 let mut login_response = request.send()?;
                 println!("{:?}", login_response);
-                if login_response.status().is_redirection() {
+                while login_response.status().is_redirection() {
                     println!("Redirect!");
                     let mut next_url = login_response
                         .headers()
@@ -176,7 +173,7 @@ impl Token {
                     } else {
                         println!("{:?}", url);
                         println!("{:?}", login_response);
-                        println!("LOGIN TEXT:{}", login_text);
+                        //println!("LOGIN TEXT:{}", login_text);
                         error!("Login failed.");
                         Err(IncorrectCredentials.into())
                     }
