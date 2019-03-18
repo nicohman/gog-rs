@@ -14,7 +14,7 @@ fn get_gog() -> Gog {
         .unwrap()
         .read_to_string(&mut token_json)
         .unwrap();
-    let mut token = Token::from_response(&token_json).unwrap();
+    let mut token = Token::from_response(token_json.as_str()).unwrap();
     token = token.refresh().unwrap();
     Gog::new(token)
 }
