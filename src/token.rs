@@ -38,7 +38,18 @@ impl Token {
     /// Fetches a token using a login code
     pub fn from_login_code(code: impl Into<String>) -> Result<Token> {
         let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+""))?;
-        Token::from_response(res.text()?)
+        let text = res.text()?;
+        println!("{:?}", text);
+        Token::from_response(text)
+    }
+    pub fn from_home_code(code: impl Into<String>) -> Result<Token> {
+        let url = format!("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fwww.gog.com%2Fon_login_success&layout=client2&code={}", code.into());
+        println!("URL:{}", url);
+        let mut res = reqwest::get(&url)?;
+        println!("{:?}", res);
+        let text = res.text()?;
+        println!("{:?}", text);
+        Token::from_response(text)
     }
     /// Checks if token has expired
     pub fn is_expired(&self) -> bool {
@@ -101,6 +112,7 @@ impl Token {
                 form_parameters.insert("login[username]", username);
                 form_parameters.insert("login[password]", password);
                 form_parameters.insert("login[login]", String::default());
+                form_parameters.insert("login[login_flow]", "default".to_string());
                 form_parameters.insert("login[_token]", lid);
                 println!("{:?}", form_parameters);
                 let check_url = reqwest::Url::parse("https://login.gog.com/login_check").unwrap();
@@ -112,20 +124,6 @@ impl Token {
                     .store
                     .get_request_cookies(&check_url)
                     .cloned()
-                    .map(|mut cookie| {
-                        cookie.set_domain("login.gog.com");
-                        cookie
-                    })
-                    .chain(
-                        normal_client
-                            .store
-                            .get_request_cookies(&check_url)
-                            .cloned()
-                            .map(|mut cookie| {
-                                cookie.set_domain(".gog.com");
-                                cookie
-                            }),
-                    )
                     .collect();
                 request = request.add_cookies(cookies_processed.iter().collect());
                 println!("{:?}", request);
@@ -140,6 +138,7 @@ impl Token {
                         .to_str()
                         .unwrap()
                         .to_string();
+                    println!("{:?}", login_response);
                     login_response = client
                         .client
                         .get_request(&reqwest::Url::parse(&next_url).unwrap())
@@ -152,8 +151,8 @@ impl Token {
                     login_doc.find(Attr("id", "second_step_authentication__token"));
                 let url = login_response.url().clone();
                 if let Some(two_node) = two_step_search.next() {
-                    info!("Two step authentication token needed.");
-                    println!("Two step token required");
+                    warn!("Two step authentication token needed.");
+                    println!("Two step token required. This is not implmented yet.");
                     let two_token = two_node
                         .attr("value")
                         .expect("No two step token found")
@@ -169,11 +168,10 @@ impl Token {
                             .map(|x| x.1)
                             .next()
                             .unwrap();
-                        Token::from_login_code(code)
+                        Token::from_home_code(code)
                     } else {
                         println!("{:?}", url);
                         println!("{:?}", login_response);
-                        //println!("LOGIN TEXT:{}", login_text);
                         error!("Login failed.");
                         Err(IncorrectCredentials.into())
                     }
