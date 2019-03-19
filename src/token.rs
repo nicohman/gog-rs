@@ -93,7 +93,21 @@ impl Token {
             let auth_url = captures[1].to_string();
             println!("Auth URl: {}", auth_url);
             info!("Got URL, requesting auth page");
-            let mut aresult = normal_client.get(&auth_url).map_err(convert_rsession)?;
+            let mut aresult = client.get(&auth_url).map_err(convert_rsession)?;
+            while aresult.status().is_redirection() {
+                println!("Redirect!");
+                let mut next_url = aresult
+                    .headers()
+                    .get("Location")
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+                println!("{:?}", aresult);
+                aresult = client
+                    .get(reqwest::Url::parse(&next_url).unwrap())
+                    .map_err(convert_rsession)?
+            }
             println!("{:?}", aresult);
             info!("Auth page request successful");
             let atext = aresult.text().expect("Couldn't get auth page text");
@@ -127,7 +141,7 @@ impl Token {
                     .client
                     .post_request(&check_url)
                     .form(&form_parameters);
-                let mut cookies_processed: Vec<cookie::Cookie> = normal_client
+                let mut cookies_processed: Vec<cookie::Cookie> = client
                     .store
                     .get_request_cookies(&check_url)
                     .cloned()
