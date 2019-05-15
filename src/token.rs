@@ -74,7 +74,6 @@ impl Token {
         let (username, password) = (username.into(), password.into());
         let garegex =
             Regex::new(r"var galaxyAccounts = new GalaxyAccounts\('(.+)','(.+)'\)").unwrap();
-        let gsregex = Regex::new(r"(galaxy-login-s=.+;) expires").unwrap();
         let mut client = ReqwestSession::new(
             reqwest::ClientBuilder::new()
                 .redirect(reqwest::RedirectPolicy::none())
@@ -93,7 +92,7 @@ impl Token {
             .to_string();
         if let Some(captures) = garegex.captures(&text) {
             let auth_url = captures[1].to_string();
-            info!("Got URL, requesting auth page");
+            info!("Got Auth URL as {}, requesting auth page", auth_url);
             let mut aresult = client.get(&auth_url).map_err(convert_rsession)?;
             while aresult.status().is_redirection() {
                 let mut next_url = aresult
@@ -297,7 +296,7 @@ impl Token {
                             .unwrap();
                         Token::from_home_code(code)
                     } else {
-                        error!("Login failed.");
+                        error!("Login failed. Incorrect credentials");
                         Err(IncorrectCredentials.into())
                     }
                 }
