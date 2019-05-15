@@ -39,16 +39,12 @@ impl Token {
     pub fn from_login_code(code: impl Into<String>) -> Result<Token> {
         let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+""))?;
         let text = res.text()?;
-        println!("{:?}", text);
         Token::from_response(text)
     }
     pub fn from_home_code(code: impl Into<String>) -> Result<Token> {
         let url = format!("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fwww.gog.com%2Fon_login_success&layout=client2&code={}", code.into());
-        println!("URL:{}", url);
         let mut res = reqwest::get(&url)?;
-        println!("{:?}", res);
         let text = res.text()?;
-        println!("{:?}", text);
         Token::from_response(text)
     }
     /// Checks if token has expired
@@ -60,10 +56,17 @@ impl Token {
         let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token))?;
         Ok(serde_json::from_str(&res.text()?)?)
     }
+    /// Tries to log into GOG using an username and password. The
+    /// two_step_token_fn should be a callback that returns the two step token
+    /// if one is required, as a string.
+    ///
+    /// If the error returned is of the kind NotAvailable, the captcha has been
+    /// triggered on the login form. There are five login attempts allowed per
+    /// day before the captcha is triggered.
     pub fn login<F>(
         username: impl Into<String>,
         password: impl Into<String>,
-        two_step_token_fn: F,
+        two_step_token_fn: Option<F>,
     ) -> Result<Token>
     where
         F: Fn() -> String,
@@ -83,7 +86,6 @@ impl Token {
         let mut result = normal_client
             .get("https://gog.com")
             .map_err(convert_rsession)?;
-        println!("{:?}", result);
         let text = result
             .text()
             .expect("Couldn't get home page text")
@@ -91,11 +93,9 @@ impl Token {
             .to_string();
         if let Some(captures) = garegex.captures(&text) {
             let auth_url = captures[1].to_string();
-            println!("Auth URl: {}", auth_url);
             info!("Got URL, requesting auth page");
             let mut aresult = client.get(&auth_url).map_err(convert_rsession)?;
             while aresult.status().is_redirection() {
-                println!("Redirect!");
                 let mut next_url = aresult
                     .headers()
                     .get("Location")
@@ -103,12 +103,10 @@ impl Token {
                     .to_str()
                     .unwrap()
                     .to_string();
-                println!("{:?}", aresult);
                 aresult = client
                     .get(reqwest::Url::parse(&next_url).unwrap())
                     .map_err(convert_rsession)?
             }
-            println!("{:?}", aresult);
             info!("Auth page request successful");
             let atext = aresult.text().expect("Couldn't get auth page text");
             let document = Document::from(atext.as_str());
@@ -117,7 +115,6 @@ impl Token {
             for poss in gcaptcha {
                 if poss.html().contains("recaptcha") {
                     error!("Captcha detected. Wait and try again.");
-                    println!("Captcha");
                     return Err(NotAvailable.into());
                 }
             }
@@ -135,7 +132,6 @@ impl Token {
                 form_parameters.insert("login[login]", String::default());
                 form_parameters.insert("login[login_flow]", "default".to_string());
                 form_parameters.insert("login[_token]", lid);
-                println!("{:?}", form_parameters);
                 let check_url = reqwest::Url::parse("https://login.gog.com/login_check").unwrap();
                 let mut request = client
                     .client
@@ -147,11 +143,13 @@ impl Token {
                     .cloned()
                     .collect();
                 request = request.add_cookies(cookies_processed.iter().collect());
-                println!("{:?}", request);
                 let mut login_response = request.send()?;
-                println!("{:?}", login_response);
+                for hvalue in login_response.headers().get_all("set-cookie") {
+                    cookies_processed.push(
+                        cookie::Cookie::parse_encoded(hvalue.to_str().unwrap().to_owned()).unwrap(),
+                    );
+                }
                 while login_response.status().is_redirection() {
-                    println!("Redirect!");
                     let mut next_url = login_response
                         .headers()
                         .get("Location")
@@ -159,12 +157,45 @@ impl Token {
                         .to_str()
                         .unwrap()
                         .to_string();
-                    println!("{:?}", login_response);
-                    login_response = client
+                    if next_url.chars().next().unwrap() == '/' {
+                        next_url = "https://login.gog.com".to_string() + next_url.as_str();
+                    }
+                    for hvalue in login_response.headers().get_all("set-cookie") {
+                        let parsed =
+                            cookie::Cookie::parse_encoded(hvalue.to_str().unwrap().to_owned())
+                                .unwrap();
+                        cookies_processed = cookies_processed
+                            .into_iter()
+                            .filter(|x| x.name() != parsed.name())
+                            .collect();
+                        cookies_processed.push(parsed);
+                    }
+                    cookies_processed = cookies_processed
+                        .into_iter()
+                        .map(|mut x| {
+                            x.set_domain("login.gog.com");
+                            if let Some(mut expires) = x.expires() {
+                                expires.tm_year += 1;
+                                x.set_expires(expires);
+                            }
+                            x
+                        })
+                        .collect();
+                    let mut temp: Vec<cookie::Cookie> = client
+                        .store
+                        .get_request_cookies(&reqwest::Url::parse(&next_url).unwrap())
+                        .cloned()
+                        .collect();
+                    let request = client
                         .client
                         .get_request(&reqwest::Url::parse(&next_url).unwrap())
-                        .add_cookies(cookies_processed.iter().collect())
-                        .send()?;
+                        .header(
+                            "Cookie",
+                            cookies_processed
+                                .iter()
+                                .fold(String::new(), |acc, x| acc + &x.to_string() + "; "),
+                        );
+                    login_response = request.send()?;
                 }
                 let login_text = login_response.text().expect("Couldn't fetch login text");
                 let login_doc = Document::from(login_text.as_str());
@@ -173,75 +204,91 @@ impl Token {
                 let url = login_response.url().clone();
                 if let Some(two_node) = two_step_search.next() {
                     warn!("Two step authentication token needed.");
-                    println!("Two step token required. This is not implmented yet.");
-                    let two_token_secret = two_node
-                        .attr("value")
-                        .expect("No two step token found")
-                        .to_string();
-                    let two_token = two_step_token_fn();
-                    if two_token.len() < 4 {
-                        return Err(MissingField("Token too short".to_string()).into());
-                    }
-                    let mut token_iter = two_token.chars().map(|x| x.to_string());
-                    let mut token_parameters = std::collections::HashMap::new();
-                    token_parameters.insert(
-                        "second_step_authentication[token][letter_1]",
-                        token_iter.next().unwrap(),
-                    );
-                    token_parameters.insert(
-                        "second_step_authentication[token][letter_2]",
-                        token_iter.next().unwrap(),
-                    );
-                    token_parameters.insert(
-                        "second_step_authentication[token][letter_3]",
-                        token_iter.next().unwrap(),
-                    );
-                    token_parameters.insert(
-                        "second_step_authentication[token][letter_4]",
-                        token_iter.next().unwrap(),
-                    );
-                    token_parameters.insert("second_step_authentication[send]", String::default());
-                    token_parameters.insert("second_step_authentication[_token]", two_token_secret);
-                    let mut login_response = client
-                        .client
-                        .post_request(&url)
-                        .add_cookies(cookies_processed.iter().collect())
-                        .send()?;
-                    while login_response.status().is_redirection() {
-                        println!("Redirect!");
-                        let mut next_url = login_response
-                            .headers()
-                            .get("Location")
-                            .unwrap()
-                            .to_str()
-                            .unwrap()
+                    if let Some(two_step_token_fn) = two_step_token_fn {
+                        let two_token_secret = two_node
+                            .attr("value")
+                            .expect("No two step token found")
                             .to_string();
-                        println!("{:?}", login_response);
-                        login_response = client
+                        let two_token = two_step_token_fn().trim().to_string();
+                        if two_token.len() < 4 {
+                            return Err(MissingField("Token too short".to_string()).into());
+                        } else if two_token.len() > 4 {
+                            return Err(MissingField("Token too long".to_string()).into());
+                        }
+                        let mut token_iter = two_token.chars().map(|x| x.to_string());
+                        let mut token_parameters = std::collections::HashMap::new();
+                        token_parameters.insert(
+                            "second_step_authentication[token][letter_1]",
+                            token_iter.next().unwrap(),
+                        );
+                        token_parameters.insert(
+                            "second_step_authentication[token][letter_2]",
+                            token_iter.next().unwrap(),
+                        );
+                        token_parameters.insert(
+                            "second_step_authentication[token][letter_3]",
+                            token_iter.next().unwrap(),
+                        );
+                        token_parameters.insert(
+                            "second_step_authentication[token][letter_4]",
+                            token_iter.next().unwrap(),
+                        );
+                        token_parameters
+                            .insert("second_step_authentication[send]", String::default());
+                        token_parameters
+                            .insert("second_step_authentication[_token]", two_token_secret);
+                        let mut login_response = client
                             .client
-                            .get_request(&reqwest::Url::parse(&next_url).unwrap())
-                            .add_cookies(cookies_processed.iter().collect())
+                            .post_request(&url)
+                            .header(
+                                "Cookie",
+                                cookies_processed
+                                    .iter()
+                                    .fold(String::new(), |acc, x| acc + &x.to_string() + "; "),
+                            )
+                            .form(&token_parameters)
                             .send()?;
-                    }
-                    if url.as_str().contains("on_login_success") {
-                        println!("{:?}", url);
-                        let code = url
-                            .query_pairs()
-                            .filter(|(k, _v)| k == "code")
-                            .map(|x| x.1)
-                            .next()
-                            .unwrap();
-                        Token::from_home_code(code)
+                        while login_response.status().is_redirection() {
+                            let mut next_url = login_response
+                                .headers()
+                                .get("Location")
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_string();
+                            if next_url.chars().next().unwrap() == '/' {
+                                next_url = "https://login.gog.com".to_string() + next_url.as_str();
+                            }
+                            let request = client
+                                .client
+                                .get_request(&reqwest::Url::parse(&next_url).unwrap())
+                                .header(
+                                    "Cookie",
+                                    cookies_processed
+                                        .iter()
+                                        .fold(String::new(), |acc, x| acc + &x.to_string() + "; "),
+                                );
+
+                            login_response = request.send()?;
+                        }
+                        let url = login_response.url();
+                        if url.as_str().contains("on_login_success") {
+                            let code = url
+                                .query_pairs()
+                                .filter(|(k, _v)| k == "code")
+                                .map(|x| x.1)
+                                .next()
+                                .unwrap();
+                            Token::from_home_code(code)
+                        } else {
+                            error!("Login failed.");
+                            Err(IncorrectCredentials.into())
+                        }
                     } else {
-                        println!("{:?}", url);
-                        println!("{:?}", login_response);
-                        error!("Login failed.");
-                        Err(IncorrectCredentials.into())
+                        Err(MissingField("Two step token required".to_string()).into())
                     }
                 } else {
-                    println!("{:?}", cookies_processed);
                     if url.as_str().contains("on_login_success") {
-                        println!("{:?}", url);
                         let code = url
                             .query_pairs()
                             .filter(|(k, _v)| k == "code")
@@ -250,8 +297,6 @@ impl Token {
                             .unwrap();
                         Token::from_home_code(code)
                     } else {
-                        println!("{:?}", url);
-                        println!("{:?}", login_response);
                         error!("Login failed.");
                         Err(IncorrectCredentials.into())
                     }
