@@ -9,6 +9,7 @@ use std::io::Read;
 use std::io::SeekFrom::*;
 use std::io::Write;
 use std::iter::FromIterator;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::*;
 pub struct ToExtract {
@@ -253,9 +254,12 @@ where
     let unpacker_name = out_dir.clone().join("unpacker.sh").as_path().to_owned();
     if extract.unpacker {
         let mut unpacker_fd = File::create(unpacker_name)?;
-        let mut perms = unpacker_fd.metadata()?.permissions();
-        perms.set_mode(0o744);
-        unpacker_fd.set_permissions(perms)?;
+        #[cfg(unix)]
+        {
+            let mut perms = unpacker_fd.metadata()?.permissions();
+            perms.set_mode(0o744);
+            unpacker_fd.set_permissions(perms)?;
+        }
         unpacker_fd.write_all(&script_bin)?;
     }
     let script = String::from_utf8(script_bin).unwrap();
