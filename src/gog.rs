@@ -571,7 +571,7 @@ pub struct WorksOn {
 #[serde(rename_all = "camelCase")]
 pub struct Extra {
     pub manual_url: String,
-    pub downloader_url: String,
+    pub downloader_url: Option<String>,
     pub name: String,
     #[serde(rename = "type")]
     pub type_e: String,
@@ -598,7 +598,7 @@ pub struct Downloads {
 #[serde(rename_all = "camelCase")]
 pub struct Download {
     pub manual_url: String,
-    pub downloader_url: String,
+    pub downloader_url: Option<String>,
     pub name: String,
     pub version: Option<String>,
     pub date: String,
