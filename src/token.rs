@@ -3,11 +3,10 @@ use regex::*;
 use reqwest;
 use select::{document::*, predicate::*};
 use serde_json;
-use std::time::{SystemTime, Duration};
-use user_agent::*;
-fn convert_rsession(err: ::user_agent::ReqwestSessionError) -> crate::error::Error {
-    ErrorKind::SessionNetwork(err).into()
-}
+use std::time::{Duration, SystemTime};
+// fn convert_rsession(err: ::user_agent::ReqwestSessionError) -> crate::error::Error {
+//     ErrorKind::SessionNetwork(err).into()
+// }
 /// An OAuth token. Will usually expire after an hour.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
@@ -49,7 +48,7 @@ impl Token {
     }
     /// Checks if token has expired
     pub fn is_expired(&self) -> bool {
-        self.updated_at + self.expires_in - cur_date() <= 0
+        (self.updated_at + self.expires_in) as i64 - cur_date() as i64 <= 0
     }
     /// Attempts to fetch an updated token
     pub fn refresh(&self) -> Result<Token> {
@@ -74,17 +73,17 @@ impl Token {
         let (username, password) = (username.into(), password.into());
         let garegex =
             Regex::new(r"var galaxyAccounts = new GalaxyAccounts\('(.+)','(.+)'\)").unwrap();
-        let mut client = ReqwestSession::new(
-            reqwest::blocking::ClientBuilder::new()
-                .redirect(reqwest::redirect::Policy::none())
-                .build()
-                .unwrap(),
-        );
-        let mut normal_client = ReqwestSession::new(reqwest::blocking::ClientBuilder::new().build().unwrap());
+        let mut client = reqwest::blocking::ClientBuilder::new()
+            .cookie_store(true)
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap();
+        let mut normal_client = reqwest::blocking::ClientBuilder::new()
+            .cookie_store(true)
+            .build()
+            .unwrap();
         info!("Fetching GOG home page to get auth url");
-        let mut result = normal_client
-            .get("https://gog.com")
-            .map_err(convert_rsession)?;
+        let mut result = normal_client.get("https://gog.com").send()?;
         let text = result
             .text()
             .expect("Couldn't get home page text")
@@ -93,7 +92,7 @@ impl Token {
         if let Some(captures) = garegex.captures(&text) {
             let auth_url = captures[1].to_string();
             info!("Got Auth URL as {}, requesting auth page", auth_url);
-            let mut aresult = client.get(&auth_url).map_err(convert_rsession)?;
+            let mut aresult = client.get(&auth_url).send()?;
             while aresult.status().is_redirection() {
                 let mut next_url = aresult
                     .headers()
@@ -102,9 +101,7 @@ impl Token {
                     .to_str()
                     .unwrap()
                     .to_string();
-                aresult = client
-                    .get(reqwest::Url::parse(&next_url).unwrap())
-                    .map_err(convert_rsession)?
+                aresult = client.get(reqwest::Url::parse(&next_url).unwrap()).send()?
             }
             info!("Auth page request successful");
             let atext = aresult.text().expect("Couldn't get auth page text");
@@ -132,22 +129,8 @@ impl Token {
                 form_parameters.insert("login[login_flow]", "default".to_string());
                 form_parameters.insert("login[_token]", lid);
                 let check_url = reqwest::Url::parse("https://login.gog.com/login_check").unwrap();
-                let mut request = client
-                    .client
-                    .post_request(&check_url)
-                    .form(&form_parameters);
-                let mut cookies_processed: Vec<_> = client
-                    .store
-                    .get_request_cookies(&check_url)
-                    .cloned()
-                    .collect();
-                request = request.add_cookies(cookies_processed.iter().collect());
+                let request = client.post(check_url).form(&form_parameters);
                 let mut login_response = request.send()?;
-                for hvalue in login_response.headers().get_all("set-cookie") {
-                    cookies_processed.push(
-                        cookie::Cookie::parse_encoded(hvalue.to_str().unwrap().to_owned()).unwrap(),
-                    );
-                }
                 while login_response.status().is_redirection() {
                     let mut next_url = login_response
                         .headers()
@@ -159,41 +142,7 @@ impl Token {
                     if next_url.chars().next().unwrap() == '/' {
                         next_url = "https://login.gog.com".to_string() + next_url.as_str();
                     }
-                    for hvalue in login_response.headers().get_all("set-cookie") {
-                        let parsed =
-                            cookie::Cookie::parse_encoded(hvalue.to_str().unwrap().to_owned())
-                                .unwrap();
-                        cookies_processed = cookies_processed
-                            .into_iter()
-                            .filter(|x| x.name() != parsed.name())
-                            .collect();
-                        cookies_processed.push(parsed);
-                    }
-                    cookies_processed = cookies_processed
-                        .into_iter()
-                        .map(|mut x| {
-                            x.set_domain("login.gog.com");
-                            if let Some(expires) = x.expires() {
-                                let new_expiry = expires + Duration::from_secs(31557600); // One year
-                                x.set_expires(new_expiry);
-                            }
-                            x
-                        })
-                        .collect();
-                    let mut temp: Vec<_> = client
-                        .store
-                        .get_request_cookies(&reqwest::Url::parse(&next_url).unwrap())
-                        .cloned()
-                        .collect();
-                    let request = client
-                        .client
-                        .get_request(&reqwest::Url::parse(&next_url).unwrap())
-                        .header(
-                            "Cookie",
-                            cookies_processed
-                                .iter()
-                                .fold(String::new(), |acc, x| acc + &x.to_string() + "; "),
-                        );
+                    let request = client.get(&next_url);
                     login_response = request.send()?;
                 }
                 let url = login_response.url().clone();
@@ -236,17 +185,7 @@ impl Token {
                             .insert("second_step_authentication[send]", String::default());
                         token_parameters
                             .insert("second_step_authentication[_token]", two_token_secret);
-                        let mut login_response = client
-                            .client
-                            .post_request(&url)
-                            .header(
-                                "Cookie",
-                                cookies_processed
-                                    .iter()
-                                    .fold(String::new(), |acc, x| acc + &x.to_string() + "; "),
-                            )
-                            .form(&token_parameters)
-                            .send()?;
+                        let mut login_response = client.post(url).form(&token_parameters).send()?;
                         while login_response.status().is_redirection() {
                             let mut next_url = login_response
                                 .headers()
@@ -258,15 +197,7 @@ impl Token {
                             if next_url.chars().next().unwrap() == '/' {
                                 next_url = "https://login.gog.com".to_string() + next_url.as_str();
                             }
-                            let request = client
-                                .client
-                                .get_request(&reqwest::Url::parse(&next_url).unwrap())
-                                .header(
-                                    "Cookie",
-                                    cookies_processed
-                                        .iter()
-                                        .fold(String::new(), |acc, x| acc + &x.to_string() + "; "),
-                                );
+                            let request = client.get(&next_url);
 
                             login_response = request.send()?;
                         }

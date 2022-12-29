@@ -9,7 +9,7 @@ keywords = ["gog", "games", "api"]
 readme="README.md"
 
 [dependencies]
-reqwest = { version = "0.10", features = ["blocking"] }
+reqwest = { version = "0.11", features = ["blocking", "cookies"] }
 serde_json = "1.0"
 serde_derive = "1.0"
 serde = "1.0"
@@ -18,6 +18,4 @@ regex = "1"
 log = "0.4"
 curl = "0.4"
 select = "0.6"
-user_agent = "0.11"
 time = "0.3"
-cookie = { version = "0.14", features = ["percent-encode"] }
