@@ -3,7 +3,7 @@ use regex::*;
 use reqwest;
 use select::{document::*, predicate::*};
 use serde_json;
-use std::time::{SystemTime};
+use std::time::SystemTime;
 // fn convert_rsession(err: ::user_agent::ReqwestSessionError) -> crate::error::Error {
 //     ErrorKind::SessionNetwork(err).into()
 // }
@@ -36,13 +36,13 @@ impl Token {
     }
     /// Fetches a token using a login code
     pub fn from_login_code(code: impl Into<String>) -> Result<Token> {
-        let res = reqwest::blocking::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+""))?;
+        let res = reqwest::blocking::get("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+"")?;
         let text = res.text()?;
         Token::from_response(text)
     }
     pub fn from_home_code(code: impl Into<String>) -> Result<Token> {
         let url = format!("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fwww.gog.com%2Fon_login_success&layout=client2&code={}", code.into());
-        let res = reqwest::blocking::get(&url)?;
+        let res = reqwest::blocking::get(url)?;
         let text = res.text()?;
         Token::from_response(text)
     }
@@ -52,7 +52,7 @@ impl Token {
     }
     /// Attempts to fetch an updated token
     pub fn refresh(&self) -> Result<Token> {
-        let res = reqwest::blocking::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token))?;
+        let res = reqwest::blocking::get("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token)?;
         Ok(serde_json::from_str(&res.text()?)?)
     }
     /// Tries to log into GOG using an username and password. The
@@ -84,11 +84,7 @@ impl Token {
             .unwrap();
         info!("Fetching GOG home page to get auth url");
         let result = normal_client.get("https://gog.com").send()?;
-        let text = result
-            .text()
-            .expect("Couldn't get home page text")
-            .to_owned()
-            .to_string();
+        let text = result.text().expect("Couldn't get home page text");
         if let Some(captures) = garegex.captures(&text) {
             let auth_url = captures[1].to_string();
             info!("Got Auth URL as {}, requesting auth page", auth_url);
@@ -139,7 +135,7 @@ impl Token {
                         .to_str()
                         .unwrap()
                         .to_string();
-                    if next_url.chars().next().unwrap() == '/' {
+                    if next_url.starts_with('/') {
                         next_url = "https://login.gog.com".to_string() + next_url.as_str();
                     }
                     let request = client.get(&next_url);
@@ -158,10 +154,14 @@ impl Token {
                             .expect("No two step token found")
                             .to_string();
                         let two_token = two_step_token_fn().trim().to_string();
-                        if two_token.len() < 4 {
-                            return Err(MissingField("Token too short".to_string()).into());
-                        } else if two_token.len() > 4 {
-                            return Err(MissingField("Token too long".to_string()).into());
+                        match two_token.len().cmp(&4) {
+                            std::cmp::Ordering::Less => {
+                                return Err(MissingField("Token too short".to_string()).into())
+                            }
+                            std::cmp::Ordering::Equal => (),
+                            std::cmp::Ordering::Greater => {
+                                return Err(MissingField("Token too long".to_string()).into())
+                            }
                         }
                         let mut token_iter = two_token.chars().map(|x| x.to_string());
                         let mut token_parameters = std::collections::HashMap::new();
@@ -194,7 +194,7 @@ impl Token {
                                 .to_str()
                                 .unwrap()
                                 .to_string();
-                            if next_url.chars().next().unwrap() == '/' {
+                            if next_url.starts_with('/') {
                                 next_url = "https://login.gog.com".to_string() + next_url.as_str();
                             }
                             let request = client.get(&next_url);
