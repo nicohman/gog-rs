@@ -257,7 +257,7 @@ impl Gog {
             res.downloads[0].remove(0);
             let downloads: Downloads =
                 serde_json::from_str(&serde_json::to_string(&res.downloads[0][0])?)?;
-            Ok(res.to_details(downloads))
+            Ok(res.into_details(downloads))
         } else {
             Err(NotAvailable.into())
         }
