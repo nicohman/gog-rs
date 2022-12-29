@@ -124,7 +124,8 @@ impl Gog {
     ) -> Result<Response> {
         if self.token.borrow().is_expired() {
             if self.auto_update {
-                self.update_token(self.token.borrow().refresh()?);
+                let new_token = self.token.borrow().refresh()?;
+                self.update_token(new_token);
                 self.rreq(method, domain, path, params)
             } else {
                 Err(ExpiredToken.into())
