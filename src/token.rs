@@ -3,7 +3,7 @@ use regex::*;
 use reqwest;
 use select::{document::*, predicate::*};
 use serde_json;
-use std::time::{Duration, SystemTime};
+use std::time::{SystemTime};
 // fn convert_rsession(err: ::user_agent::ReqwestSessionError) -> crate::error::Error {
 //     ErrorKind::SessionNetwork(err).into()
 // }
@@ -36,13 +36,13 @@ impl Token {
     }
     /// Fetches a token using a login code
     pub fn from_login_code(code: impl Into<String>) -> Result<Token> {
-        let mut res = reqwest::blocking::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+""))?;
+        let res = reqwest::blocking::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+""))?;
         let text = res.text()?;
         Token::from_response(text)
     }
     pub fn from_home_code(code: impl Into<String>) -> Result<Token> {
         let url = format!("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fwww.gog.com%2Fon_login_success&layout=client2&code={}", code.into());
-        let mut res = reqwest::blocking::get(&url)?;
+        let res = reqwest::blocking::get(&url)?;
         let text = res.text()?;
         Token::from_response(text)
     }
@@ -52,7 +52,7 @@ impl Token {
     }
     /// Attempts to fetch an updated token
     pub fn refresh(&self) -> Result<Token> {
-        let mut res = reqwest::blocking::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token))?;
+        let res = reqwest::blocking::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token))?;
         Ok(serde_json::from_str(&res.text()?)?)
     }
     /// Tries to log into GOG using an username and password. The
@@ -73,17 +73,17 @@ impl Token {
         let (username, password) = (username.into(), password.into());
         let garegex =
             Regex::new(r"var galaxyAccounts = new GalaxyAccounts\('(.+)','(.+)'\)").unwrap();
-        let mut client = reqwest::blocking::ClientBuilder::new()
+        let client = reqwest::blocking::ClientBuilder::new()
             .cookie_store(true)
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .unwrap();
-        let mut normal_client = reqwest::blocking::ClientBuilder::new()
+        let normal_client = reqwest::blocking::ClientBuilder::new()
             .cookie_store(true)
             .build()
             .unwrap();
         info!("Fetching GOG home page to get auth url");
-        let mut result = normal_client.get("https://gog.com").send()?;
+        let result = normal_client.get("https://gog.com").send()?;
         let text = result
             .text()
             .expect("Couldn't get home page text")
@@ -94,7 +94,7 @@ impl Token {
             info!("Got Auth URL as {}, requesting auth page", auth_url);
             let mut aresult = client.get(&auth_url).send()?;
             while aresult.status().is_redirection() {
-                let mut next_url = aresult
+                let next_url = aresult
                     .headers()
                     .get("Location")
                     .unwrap()

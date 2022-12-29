@@ -7,6 +7,11 @@ use gog::gog::*;
 use gog::token::Token;
 use gog::*;
 use std::io::Read;
+
+// Some tests need an owned game.
+// "Beneath a Steel Sky" is free from GOG, so a good test case.
+const OWNED_GAME_ID: i64 = 1207658695;
+
 fn get_gog() -> Gog {
     let path = var_os("GOG_TOKEN_PATH").unwrap().into_string().unwrap();
     let mut token_json = String::new();
@@ -36,7 +41,7 @@ fn get_pub_info() {
 #[test]
 fn get_game_details() {
     let gog = get_gog();
-    gog.get_game_details(1819469826).unwrap();
+    gog.get_game_details(OWNED_GAME_ID).unwrap();
 }
 
 #[test]
@@ -91,7 +96,7 @@ fn filtered_os() {
 #[test]
 fn download() {
     let gog = get_gog();
-    let details = gog.get_game_details(1429698467).unwrap();
+    let details = gog.get_game_details(OWNED_GAME_ID).unwrap();
     gog.download_game(details.downloads.linux.unwrap());
 }
 #[test]
@@ -128,8 +133,8 @@ fn friends() {
 #[test]
 fn extract_data() {
     let gog = get_gog();
-    let details = gog.get_game_details(1429698467).unwrap();
-    let data = gog.extract_data(details.downloads.linux.unwrap());
+    let details = gog.get_game_details(OWNED_GAME_ID).unwrap();
+    assert!(gog.extract_data(details.downloads.linux.unwrap()).is_ok())
 }
 #[test]
 #[ignore]

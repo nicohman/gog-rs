@@ -26,14 +26,12 @@ pub mod gog;
 pub mod token;
 use connect::*;
 use containers::*;
-use curl::easy::Easy;
 use curl::easy::{Easy2, Handler, WriteError};
 use domains::*;
 /// Main error for GOG calls
 pub use error::Error;
 pub use error::ErrorKind;
 pub use error::Result;
-use extract::EOCDOffset::*;
 use extract::*;
 use gog::*;
 use product::*;
@@ -165,7 +163,7 @@ impl Gog {
     {
         self.freq(GET, domain, path, params)
     }
-    fn fpost<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<T>
+    fn _fpost<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<T>
     where
         T: DeserializeOwned,
     {
@@ -182,7 +180,7 @@ impl Gog {
     where
         T: DeserializeOwned,
     {
-        let mut res = self.rreq(method, domain, path, params)?;
+        let res = self.rreq(method, domain, path, params)?;
         let st = res.text()?;
         Ok(serde_json::from_str(&st)?)
     }
@@ -637,7 +635,7 @@ impl Gog {
         start: i64,
         end: i64,
     ) -> Result<Easy2<H>> {
-        let mut url = url.into();
+        let url = url.into();
         let mut easy = Easy2::new(handler);
         easy.url(&url)?;
         easy.range(&format!("{}-{}", start, end))?;
@@ -704,21 +702,19 @@ impl Gog {
                 .unwrap();
             let mut bufreader = BufReader::new(response);
             let sizes = self.get_sizes(&mut bufreader)?;
-            let offset = sizes.0 + sizes.1;
             let eocd_offset = self.get_eocd_offset(&url, size)?;
-            let mut off = 0;
-            match eocd_offset {
+            let off = match eocd_offset {
                 EOCDOffset::Offset(offset) => {
-                    off = offset;
+                    offset
                 }
                 EOCDOffset::Offset64(offset) => {
-                    off = offset;
+                    offset
                 }
             };
-            let mut cd_offset = 0;
-            let mut records = 0;
-            let mut cd_size = 0;
-            let mut central_directory =
+            let cd_offset;
+            let records;
+            let cd_size;
+            let central_directory =
                 self.download_request_range(url.as_str(), off as i64, size)?;
             let mut cd_slice = central_directory.as_slice();
             let mut cd_reader = BufReader::new(&mut cd_slice);
@@ -736,8 +732,8 @@ impl Gog {
                     cd_size = cd.cd_size as u64;
                 }
             };
-            let mut offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
-            let mut cd = self
+            let offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
+            let cd = self
                 .download_request_range(
                     url.as_str(),
                     offset_beg as i64,
@@ -747,7 +743,7 @@ impl Gog {
             let mut slice = cd.as_slice();
             let mut full_reader = BufReader::new(&mut slice);
             let mut files = vec![];
-            for i in 0..records {
+            for _ in 0..records {
                 let mut entry = CDEntry::from_reader(&mut full_reader);
                 entry.start_offset = (sizes.0 + sizes.1) as u64 + entry.disk_offset.unwrap();
                 files.push(entry);
@@ -770,9 +766,7 @@ impl Gog {
     fn get_eocd_offset(&self, url: &str, size: i64) -> Result<EOCDOffset> {
         let signature = 0x06054b50;
         let signature_64 = 0x06064b50;
-        let mut offset = 0;
-        let mut inter = [0; 4];
-        let mut easy = Easy::new();
+        let mut offset;
         for i in 4..size + 1 {
             let pos = size - i;
             let resp = self.download_request_range(url, pos, pos + 4)?;
