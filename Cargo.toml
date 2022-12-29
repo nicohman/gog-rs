@@ -9,13 +9,13 @@ keywords = ["gog", "games", "api"]
 readme="README.md"
 
 [dependencies]
-reqwest = { version = "0.11", features = ["blocking", "cookies"] }
-serde_json = "1.0"
-serde_derive = "1.0"
-serde = "1.0"
-error-chain = "0.12"
-regex = "1"
-log = "0.4"
-curl = "0.4"
-select = "0.6"
-time = "0.3"
+reqwest = { version = "0.11.13", features = ["blocking", "cookies"] }
+serde_json = "1.0.91"
+serde_derive = "1.0.152"
+serde = "1.0.152"
+error-chain = "0.12.4"
+regex = "1.7.0"
+log = "0.4.17"
+curl = "0.4.44"
+select = "0.6.0"
+time = "0.3.17"
