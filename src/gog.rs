@@ -171,11 +171,11 @@ pub mod connect {
     }
     /// The status of a GOG Connect game
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
-    #[serde(rename_all = "lowercase")]
+    #[serde(rename_all = "snake_case")]
     pub enum ConnectGameStatus {
-        IMPORTED,
-        READY_TO_LINK,
-        UNAVAILABLE,
+        Imported,
+        ReadyToLink,
+        Unavailable,
     }
 }
 /// Things associated with the /products endpoinnt
@@ -394,36 +394,30 @@ pub struct GameDetails {
 }
 impl GameDetails {
     pub fn all(self, linux: bool) -> Vec<Download> {
-        let downloads;
-        if linux {
-            downloads = self.downloads.linux.unwrap();
+        let downloads = if linux {
+            self.downloads.linux.unwrap()
         } else {
-            downloads = self.downloads.windows.unwrap();
-        }
+            self.downloads.windows.unwrap()
+        };
         downloads
             .into_iter()
-            .chain(
-                self.dlcs
+            .chain(self.dlcs.into_iter().flat_map(|x| {
+                let title = x.title.clone();
+                let mut d;
+                if linux {
+                    d = x.downloads.linux.unwrap();
+                } else {
+                    d = x.downloads.windows.unwrap();
+                }
+                d = d
                     .into_iter()
-                    .map(|x| {
-                        let title = x.title.clone();
-                        let mut d;
-                        if linux {
-                            d = x.downloads.linux.unwrap();
-                        } else {
-                            d = x.downloads.windows.unwrap();
-                        }
-                        d = d
-                            .into_iter()
-                            .map(|mut y| {
-                                y.name = title.clone();
-                                y
-                            })
-                            .collect();
-                        d
+                    .map(|mut y| {
+                        y.name = title.clone();
+                        y
                     })
-                    .flatten(),
-            )
+                    .collect();
+                d
+            }))
             .collect()
     }
 }
@@ -433,10 +427,10 @@ pub struct FilterParams {
 }
 impl FilterParams {
     pub fn from_vec(p: Vec<FilterParam>) -> FilterParams {
-        return FilterParams { params: p };
+        FilterParams { params: p }
     }
     pub fn from_one(p: FilterParam) -> FilterParams {
-        return FilterParams { params: vec![p] };
+        FilterParams { params: vec![p] }
     }
     pub fn to_query_string(&self) -> String {
         let mut s = String::from("?");
@@ -444,7 +438,7 @@ impl FilterParams {
             s = s + p.to_string().as_str() + "&";
         }
         s.pop();
-        return s;
+        s
     }
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -454,15 +448,15 @@ pub enum FilterParam {
     Search(String),
     Page(i32),
 }
-impl FilterParam {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for FilterParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use FilterParam::*;
         match self {
-            MediaType(id) => format!("mediaType={}", id),
+            MediaType(id) => write!(f, "mediaType={}", id),
             // OS filtering only for games, so forces games
-            OS(os) => format!("system={}&mediaType=1", os.codes()),
-            Search(st) => format!("search={}&mediaType=1", st),
-            Page(num) => format!("page={}", num),
+            OS(os) => write!(f, "system={}&mediaType=1", os.codes()),
+            Search(st) => write!(f, "search={}&mediaType=1", st),
+            Page(num) => write!(f, "page={}", num),
         }
     }
 }
@@ -561,10 +555,11 @@ pub struct DurationEnd {
     pub timezone: String,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorksOn {
-    pub Windows: bool,
-    pub Linux: bool,
-    pub Mac: bool,
+    pub windows: bool,
+    pub linux: bool,
+    pub mac: bool,
 }
 /// An extra that comes with a game, like wallpapers or soundtrack
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -573,8 +568,7 @@ pub struct Extra {
     pub manual_url: String,
     pub downloader_url: Option<String>,
     pub name: String,
-    #[serde(rename = "type")]
-    pub type_e: String,
+    pub r#type: String,
     pub info: i64,
     pub size: String,
 }
