@@ -79,12 +79,12 @@ impl Gog {
         let mut client_re = Client::builder().redirect(Policy::none());
         client = client.default_headers(headers.clone());
         client_re = client_re.default_headers(headers);
-        return Gog {
+        Gog {
             token: RefCell::new(token),
             client: RefCell::new(client.build().unwrap()),
             client_noredirect: RefCell::new(client_re.build().unwrap()),
             auto_update: true,
-        };
+        }
     }
     fn update_token(&self, token: Token) {
         let headers = Gog::headers_token(&token.access_token);
@@ -110,7 +110,7 @@ impl Gog {
         );
         // GOG now requires this magic cookie to be included in all requests.
         headers.insert("CSRF", "csrf=true".parse().unwrap());
-        return headers;
+        headers
     }
     fn rget(
         &self,
@@ -138,16 +138,16 @@ impl Gog {
         if self.token.borrow().is_expired() {
             if self.auto_update {
                 self.update_token(self.token.borrow().refresh()?);
-                return self.rreq(method, domain, path, params);
+                self.rreq(method, domain, path, params)
             } else {
-                return Err(ExpiredToken.into());
+                Err(ExpiredToken.into())
             }
         } else {
             let mut url = domain.to_string() + path;
-            if params.is_some() {
-                let params = params.unwrap();
-                if params.len() > 0 {
-                    url = url + "?";
+            if let Some(temp_params) = params {
+                let params = temp_params;
+                if !params.is_empty() {
+                    url += "?";
                     for (k, v) in params.iter() {
                         url = url + k + "=" + &v.to_string() + "&";
                     }
@@ -197,9 +197,9 @@ impl Gog {
     {
         let r: Map<String, Value> = self.freq(method, domain, path, params)?;
         if r.contains_key(nested) {
-            return Ok(serde_json::from_str(&r.get(nested).unwrap().to_string())?);
+            Ok(serde_json::from_str(&r.get(nested).unwrap().to_string())?)
         } else {
-            return Err(MissingField(nested.to_string()).into());
+            Err(MissingField(nested.to_string()).into())
         }
     }
     fn nfget<T>(
@@ -253,7 +253,7 @@ impl Gog {
             &("/account/gameDetails/".to_string() + &game_id.to_string() + ".json"),
             None,
         )?;
-        if res.downloads.len() > 0 {
+        if !res.downloads.is_empty() {
             res.downloads[0].remove(0);
             let downloads: Downloads =
                 serde_json::from_str(&serde_json::to_string(&res.downloads[0][0])?)?;
@@ -270,9 +270,9 @@ impl Gog {
                 let mut url = BASE.to_string() + &x.manual_url;
                 let mut response;
                 loop {
-                    let temp_response = self.client_noredirect.borrow().get(&url).send();
-                    if temp_response.is_ok() {
-                        response = temp_response.unwrap();
+                    let temp_response = self.client_noredirect.borrow().get(url).send();
+                    if let Ok(temp) = temp_response {
+                        response = temp;
                         let headers = response.headers();
                         // GOG appears to be inconsistent with returning either 301/302, so this just checks for a redirect location.
                         if headers.contains_key("location") {
@@ -380,7 +380,7 @@ impl Gog {
             let map: Map<String, Value> = serde_json::from_str(&st)?;
             if let Some(items) = map.get("items") {
                 let array = items.as_array();
-                if array.is_some() && array.unwrap().len() == 0 {
+                if array.is_some() && array.unwrap().is_empty() {
                     return Err(NotAvailable.into());
                 }
             }
@@ -508,13 +508,7 @@ impl Gog {
     pub fn delete_tag(&self, tag_id: i64) -> Result<bool> {
         let res: Result<StatusDel> =
             self.fget(EMBD, "/account/tags/delete", map_p!({ "tag_id": tag_id }));
-        res.map(|x| {
-            if x.status.as_str() == "deleted" {
-                return true;
-            } else {
-                return false;
-            }
-        })
+        res.map(|x| return x.status.as_str() == "deleted")
     }
     /// Changes newsletter subscription status
     pub fn newsletter_subscription(&self, enabled: bool) -> EmptyResponse {
@@ -555,12 +549,12 @@ impl Gog {
         let g: Map<String, Value> =
             self.nfget(EMBD, "/user/games_rating.json", None, "games_rating")?;
         Ok(g.iter()
-            .map(|x| return (x.0.to_owned(), x.1.as_i64().unwrap()))
+            .map(|x| (x.0.to_owned(), x.1.as_i64().unwrap()))
             .collect::<Vec<(String, i64)>>())
     }
     /// Gets reviews the user has voted on
     pub fn voted_reviews(&self) -> Result<Vec<i64>> {
-        return self.nfget(EMBD, "/user/review_votes.json", None, "reviews");
+        self.nfget(EMBD, "/user/review_votes.json", None, "reviews")
     }
     /// Reports a review
     pub fn report_review(&self, review_id: i32) -> Result<bool> {
@@ -606,20 +600,16 @@ impl Gog {
                 break;
             }
             if script_size == 0 {
-                let captures = offset_reg.captures(&buffer);
-                if captures.is_some() {
-                    let un = captures.unwrap();
-                    if un.len() > 1 {
-                        script_size = un[1].to_string().parse().unwrap();
+                if let Some(captures) = offset_reg.captures(&buffer) {
+                    if captures.len() > 1 {
+                        script_size = captures[1].to_string().parse().unwrap();
                     }
                 }
             }
             if filesize == 0 {
-                let captures = filesize_reg.captures(&buffer);
-                if captures.is_some() {
-                    let un = captures.unwrap();
-                    if un.len() > 1 {
-                        filesize = un[1].to_string().parse().unwrap();
+                if let Some(captures) = filesize_reg.captures(&buffer) {
+                    if captures.len() > 1 {
+                        filesize = captures[1].to_string().parse().unwrap();
                     }
                 }
             }
@@ -674,9 +664,8 @@ impl Gog {
             let mut url = BASE.to_string() + &down.manual_url;
             let mut response;
             loop {
-                let temp_response = self.client_noredirect.borrow().get(&url).send();
-                if temp_response.is_ok() {
-                    response = temp_response.unwrap();
+                if let Ok(temp_response) = self.client_noredirect.borrow().get(&url).send() {
+                    response = temp_response;
                     let headers = response.headers();
                     // GOG appears to be inconsistent with returning either 301/302, so this just checks for a redirect location.
                     if headers.contains_key("location") {
@@ -704,18 +693,13 @@ impl Gog {
             let sizes = self.get_sizes(&mut bufreader)?;
             let eocd_offset = self.get_eocd_offset(&url, size)?;
             let off = match eocd_offset {
-                EOCDOffset::Offset(offset) => {
-                    offset
-                }
-                EOCDOffset::Offset64(offset) => {
-                    offset
-                }
+                EOCDOffset::Offset(offset) => offset,
+                EOCDOffset::Offset64(offset) => offset,
             };
             let cd_offset;
             let records;
             let cd_size;
-            let central_directory =
-                self.download_request_range(url.as_str(), off as i64, size)?;
+            let central_directory = self.download_request_range(url.as_str(), off as i64, size)?;
             let mut cd_slice = central_directory.as_slice();
             let mut cd_reader = BufReader::new(&mut cd_slice);
             match eocd_offset {
@@ -729,7 +713,7 @@ impl Gog {
                     let cd = CentralDirectory64::from_reader(&mut cd_reader);
                     cd_offset = cd.cd_start as u64;
                     records = cd.cd_total;
-                    cd_size = cd.cd_size as u64;
+                    cd_size = cd.cd_size;
                 }
             };
             let offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
@@ -786,16 +770,16 @@ impl Gog {
     }
 }
 fn fold_mult(acc: String, now: &String) -> Result<String> {
-    return Ok(acc + "," + now);
+    Ok(acc + "," + now)
 }
 fn bool_to_int(b: bool) -> i32 {
     let mut par = 0;
     if b {
         par = 1;
     }
-    return par;
+    par
 }
-fn vec_to_u32(data: &Vec<u8>) -> u32 {
+fn vec_to_u32(data: &[u8]) -> u32 {
     u32::from_le_bytes([data[0], data[1], data[2], data[3]])
 }
 /// A simple curl handler for a vector of bytes
