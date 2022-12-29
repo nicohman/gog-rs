@@ -6,7 +6,8 @@ repository = "https://git.sr.ht/~nicohman/gogapi-rs"
 description = "A crate to use the GOG web api"
 license = "GPL-3.0"
 keywords = ["gog", "games", "api"]
-readme="README.md"
+readme = "README.md"
+edition = "2021"
 
 [dependencies]
 reqwest = { version = "0.11.13", features = ["blocking", "cookies"] }

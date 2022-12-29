@@ -1,4 +1,4 @@
-use error::{ErrorKind::*, *};
+use crate::error::{ErrorKind::*, *};
 use regex::*;
 use reqwest;
 use select::{document::*, predicate::*};

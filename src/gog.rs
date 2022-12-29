@@ -136,7 +136,7 @@ pub mod status {
 }
 /// GOG Connect-related structs
 pub mod connect {
-    use gog::GMap;
+    use crate::gog::GMap;
     /// A GOG Connect-linked steam account
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]

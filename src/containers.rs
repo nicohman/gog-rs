@@ -1,5 +1,6 @@
-use gog::*;
+use crate::gog::*;
 use serde_json::value::Value;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OwnedGames {
     pub owned: Vec<i64>,
