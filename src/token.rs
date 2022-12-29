@@ -3,7 +3,7 @@ use regex::*;
 use reqwest;
 use select::{document::*, predicate::*};
 use serde_json;
-use std::time::SystemTime;
+use std::time::{SystemTime, Duration};
 use user_agent::*;
 fn convert_rsession(err: ::user_agent::ReqwestSessionError) -> crate::error::Error {
     ErrorKind::SessionNetwork(err).into()
@@ -37,13 +37,13 @@ impl Token {
     }
     /// Fetches a token using a login code
     pub fn from_login_code(code: impl Into<String>) -> Result<Token> {
-        let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+""))?;
+        let mut res = reqwest::blocking::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+""))?;
         let text = res.text()?;
         Token::from_response(text)
     }
     pub fn from_home_code(code: impl Into<String>) -> Result<Token> {
         let url = format!("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fwww.gog.com%2Fon_login_success&layout=client2&code={}", code.into());
-        let mut res = reqwest::get(&url)?;
+        let mut res = reqwest::blocking::get(&url)?;
         let text = res.text()?;
         Token::from_response(text)
     }
@@ -53,7 +53,7 @@ impl Token {
     }
     /// Attempts to fetch an updated token
     pub fn refresh(&self) -> Result<Token> {
-        let mut res = reqwest::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token))?;
+        let mut res = reqwest::blocking::get(&("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token))?;
         Ok(serde_json::from_str(&res.text()?)?)
     }
     /// Tries to log into GOG using an username and password. The
@@ -75,12 +75,12 @@ impl Token {
         let garegex =
             Regex::new(r"var galaxyAccounts = new GalaxyAccounts\('(.+)','(.+)'\)").unwrap();
         let mut client = ReqwestSession::new(
-            reqwest::ClientBuilder::new()
-                .redirect(reqwest::RedirectPolicy::none())
+            reqwest::blocking::ClientBuilder::new()
+                .redirect(reqwest::redirect::Policy::none())
                 .build()
                 .unwrap(),
         );
-        let mut normal_client = ReqwestSession::new(reqwest::ClientBuilder::new().build().unwrap());
+        let mut normal_client = ReqwestSession::new(reqwest::blocking::ClientBuilder::new().build().unwrap());
         info!("Fetching GOG home page to get auth url");
         let mut result = normal_client
             .get("https://gog.com")
@@ -136,7 +136,7 @@ impl Token {
                     .client
                     .post_request(&check_url)
                     .form(&form_parameters);
-                let mut cookies_processed: Vec<cookie::Cookie> = client
+                let mut cookies_processed: Vec<_> = client
                     .store
                     .get_request_cookies(&check_url)
                     .cloned()
@@ -173,14 +173,14 @@ impl Token {
                         .into_iter()
                         .map(|mut x| {
                             x.set_domain("login.gog.com");
-                            if let Some(mut expires) = x.expires() {
-                                expires.tm_year += 1;
-                                x.set_expires(expires);
+                            if let Some(expires) = x.expires() {
+                                let new_expiry = expires + Duration::from_secs(31557600); // One year
+                                x.set_expires(new_expiry);
                             }
                             x
                         })
                         .collect();
-                    let mut temp: Vec<cookie::Cookie> = client
+                    let mut temp: Vec<_> = client
                         .store
                         .get_request_cookies(&reqwest::Url::parse(&next_url).unwrap())
                         .cloned()
@@ -196,11 +196,11 @@ impl Token {
                         );
                     login_response = request.send()?;
                 }
+                let url = login_response.url().clone();
                 let login_text = login_response.text().expect("Couldn't fetch login text");
                 let login_doc = Document::from(login_text.as_str());
                 let mut two_step_search =
                     login_doc.find(Attr("id", "second_step_authentication__token"));
-                let url = login_response.url().clone();
                 if let Some(two_node) = two_step_search.next() {
                     warn!("Two step authentication token needed.");
                     if let Some(two_step_token_fn) = two_step_token_fn {

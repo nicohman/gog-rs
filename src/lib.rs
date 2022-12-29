@@ -40,9 +40,10 @@ use extract::*;
 use gog::*;
 use product::*;
 use regex::*;
+use reqwest::blocking::{Client, Response};
 use reqwest::header::*;
-use reqwest::RedirectPolicy;
-use reqwest::{Client, Method, Response};
+use reqwest::redirect::Policy;
+use reqwest::{Method};
 use serde::de::DeserializeOwned;
 use serde_json::value::{Map, Value};
 use std::cell::RefCell;
@@ -79,7 +80,7 @@ impl Gog {
     fn from_token(token: Token) -> Gog {
         let headers = Gog::headers_token(&token.access_token);
         let mut client = Client::builder();
-        let mut client_re = Client::builder().redirect(RedirectPolicy::none());
+        let mut client_re = Client::builder().redirect(Policy::none());
         client = client.default_headers(headers.clone());
         client_re = client_re.default_headers(headers);
         return Gog {
@@ -92,7 +93,7 @@ impl Gog {
     fn update_token(&self, token: Token) {
         let headers = Gog::headers_token(&token.access_token);
         let client = Client::builder();
-        let client_re = Client::builder().redirect(RedirectPolicy::none());
+        let client_re = Client::builder().redirect(Policy::none());
         self.client
             .replace(client.default_headers(headers.clone()).build().unwrap());
         self.client_noredirect
