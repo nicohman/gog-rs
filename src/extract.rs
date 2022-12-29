@@ -8,7 +8,6 @@ use std::io::BufReader;
 use std::io::Read;
 use std::io::SeekFrom::*;
 use std::io::Write;
-use std::iter::FromIterator;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::*;
@@ -35,15 +34,15 @@ pub struct CentralDirectory {
     pub comment: String,
 }
 impl CentralDirectory {
-    pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
-        let header = read_32(&mut reader);
-        let disk = read_16(&mut reader);
-        let cd_start_disk = read_16(&mut reader);
-        let cd_records = read_16(&mut reader);
-        let total_cd_records = read_16(&mut reader);
-        let cd_size = read_32(&mut reader);
-        let cd_start_offset = read_32(&mut reader);
-        let comment_length = read_16(&mut reader);
+    pub fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Self {
+        let header = read_32(reader);
+        let disk = read_16(reader);
+        let cd_start_disk = read_16(reader);
+        let cd_records = read_16(reader);
+        let total_cd_records = read_16(reader);
+        let cd_size = read_32(reader);
+        let cd_start_offset = read_32(reader);
+        let comment_length = read_16(reader);
         let mut comment = String::new();
         if comment_length > 0 {
             let mut buffer = vec![0; comment_length as usize];
@@ -54,15 +53,15 @@ impl CentralDirectory {
             comment = String::from_utf8(buffer.to_vec()).unwrap();
         }
         CentralDirectory {
-            header: header,
-            disk: disk,
-            cd_start_disk: cd_start_disk,
-            cd_records: cd_records,
-            total_cd_records: total_cd_records,
-            cd_size: cd_size,
-            cd_start_offset: cd_start_offset,
-            comment_length: comment_length,
-            comment: comment,
+            header,
+            disk,
+            cd_start_disk,
+            cd_records,
+            total_cd_records,
+            cd_size,
+            cd_start_offset,
+            comment_length,
+            comment,
         }
     }
 }
@@ -81,19 +80,17 @@ pub struct CentralDirectory64 {
 }
 
 impl CentralDirectory64 {
-    pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
-        let header = read_32(&mut reader);
-        let directory_record_size = read_64(&mut reader);
-        let version_made_by = read_16(&mut reader);
-        let version_needed = read_16(&mut reader);
-        let cd = read_32(&mut reader);
-        let cd_start = read_32(&mut reader);
-        let cd_total_disk = read_64(&mut reader);
-        let cd_total = read_64(&mut reader);
-
-        let cd_size = read_64(&mut reader);
-
-        let cd_offset = read_64(&mut reader);
+    pub fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Self {
+        let header = read_32(reader);
+        let directory_record_size = read_64(reader);
+        let version_made_by = read_16(reader);
+        let version_needed = read_16(reader);
+        let cd = read_32(reader);
+        let cd_start = read_32(reader);
+        let cd_total_disk = read_64(reader);
+        let cd_total = read_64(reader);
+        let cd_size = read_64(reader);
+        let cd_offset = read_64(reader);
         CentralDirectory64 {
             header: header,
             directory_record_size: directory_record_size,
@@ -133,32 +130,24 @@ pub struct CDEntry {
     pub start_offset: u64,
 }
 impl CDEntry {
-    pub fn from_reader<R: Read>(mut reader: &mut BufReader<R>) -> Self {
-        let mut is_local = false;
-        let header = read_32(&mut reader);
-        is_local = false;
-        let mut version_made_by = None;
-        version_made_by = Some(read_16(&mut reader));
-        let version_needed = read_16(&mut reader);
-        let flag = read_16(&mut reader);
-        let compression_method = read_16(&mut reader);
-        let mod_time = read_16(&mut reader);
-        let mod_date = read_16(&mut reader);
-        let crc32 = read_32(&mut reader);
-        let comp_size = read_32(&mut reader) as u64;
-        let uncomp_size = read_32(&mut reader) as u64;
-        let filename_length = read_16(&mut reader);
-        let extra_length = read_16(&mut reader);
-        let mut comment_length = None;
-        let mut disk_num = None;
-        let mut internal_file_attr = None;
-        let mut external_file_attr = None;
-        let mut disk_offset = None;
-        comment_length = Some(read_16(&mut reader));
-        disk_num = Some(read_16(&mut reader) as u32);
-        internal_file_attr = Some(read_16(&mut reader));
-        external_file_attr = Some(read_32(&mut reader));
-        disk_offset = Some(read_32(&mut reader) as u64);
+    pub fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Self {
+        let header = read_32(reader);
+        let version_made_by = Some(read_16(reader));
+        let version_needed = read_16(reader);
+        let flag = read_16(reader);
+        let compression_method = read_16(reader);
+        let mod_time = read_16(reader);
+        let mod_date = read_16(reader);
+        let crc32 = read_32(reader);
+        let comp_size = read_32(reader) as u64;
+        let uncomp_size = read_32(reader) as u64;
+        let filename_length = read_16(reader);
+        let extra_length = read_16(reader);
+        let comment_length = Some(read_16(reader));
+        let disk_num = Some(read_16(reader) as u32);
+        let internal_file_attr = Some(read_16(reader));
+        let external_file_attr = Some(read_32(reader));
+        let disk_offset = Some(read_32(reader) as u64);
         let mut filename = String::new();
         if filename_length > 0 {
             let mut buffer = vec![0; filename_length as usize];
@@ -166,7 +155,7 @@ impl CDEntry {
             filename = String::from_utf8_lossy(&buffer.to_vec()).to_string();
         }
         if extra_length > 0 {
-            let mut buffer = vec![0; extra_length as usize];
+            let buffer = vec![0; extra_length as usize];
             reader.read_exact(&mut buffer.to_vec()).unwrap();
         }
         let mut comment = String::new();
@@ -236,8 +225,8 @@ where
     let offset_reg = Regex::new(r"offset=`head -n (\d+)").unwrap();
     fs::create_dir_all(out_dir)?;
     let mut beg_buf: [u8; 10240] = [0; 10240];
-    let _beginning = in_file.read_exact(&mut beg_buf)?;
-    let vec_beg: Vec<u8> = Vec::from_iter(beg_buf.iter().map(|x| *x));
+    in_file.read_exact(&mut beg_buf)?;
+    let vec_beg: Vec<u8> = beg_buf.into();
     let mut buf_in_file = BufReader::new(in_file);
     buf_in_file.seek(Start(0))?;
     let beg_string = String::from_utf8(vec_beg).unwrap();
@@ -245,13 +234,13 @@ where
     let lines: i64 = offset_string.parse().unwrap();
     let mut dump = String::new();
     let mut script_size: u64 = 0;
-    for _i in 0..lines {
+    for _ in 0..lines {
         script_size += buf_in_file.read_line(&mut dump)? as u64;
     }
     buf_in_file.seek(Start(0))?;
     let mut script_bin = vec![0u8; script_size as usize];
     buf_in_file.read_exact(&mut script_bin)?;
-    let unpacker_name = out_dir.clone().join("unpacker.sh").as_path().to_owned();
+    let unpacker_name = out_dir.join("unpacker.sh");
     if extract.unpacker {
         let mut unpacker_fd = File::create(unpacker_name)?;
         #[cfg(unix)]
@@ -270,17 +259,13 @@ where
     let mut mojo = vec![0u8; filesize];
     buf_in_file.seek(Start(script_size))?;
     buf_in_file.read_exact(&mut mojo)?;
-    let archive_name = out_dir
-        .clone()
-        .join("mojosetup.tar.gz")
-        .as_path()
-        .to_owned();
+    let archive_name = out_dir.join("mojosetup.tar.gz");
     if extract.mojosetup {
         let mut archive_fd = File::create(archive_name)?;
         archive_fd.write_all(&mojo)?;
     }
     let dataoffset = script_size + filesize as u64;
-    buf_in_file.seek(Start(dataoffset as u64))?;
+    buf_in_file.seek(Start(dataoffset))?;
     let mut data: Vec<u8> = Vec::new();
     buf_in_file.read_to_end(&mut data)?;
     let data_name = out_dir.join("data.zip").as_path().to_owned();
