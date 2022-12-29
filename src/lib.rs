@@ -1,20 +1,7 @@
 //! This crate provides an easy interface to communicate with the not-so-easy (unofficial) GOG API.
 //! Many thanks to [Yepoleb](https://github.com/Yepoleb), who made
 //! [this](https://gogapidocs.readthedocs.io/en/latest/index.html) very helpful set of docs.
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate serde_json;
-#[macro_use]
-extern crate error_chain;
-#[macro_use]
-extern crate log;
-extern crate curl;
-extern crate regex;
-extern crate reqwest;
-extern crate select;
-extern crate serde;
-extern crate time;
+use serde_json::json;
 mod containers;
 /// Provides error-handling logic
 mod error;

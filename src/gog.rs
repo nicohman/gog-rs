@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use serde_json::value::{Map, Value};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -105,6 +106,8 @@ impl fmt::Display for Language {
 }
 /// Statuses from get_pub_info
 pub mod status {
+    use serde::{Deserialize, Serialize};
+
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct FriendStatus {
@@ -136,6 +139,8 @@ pub mod status {
 }
 /// GOG Connect-related structs
 pub mod connect {
+    use serde::{Deserialize, Serialize};
+
     use crate::gog::GMap;
     /// A GOG Connect-linked steam account
     #[derive(Serialize, Deserialize, Debug)]
@@ -180,6 +185,7 @@ pub mod connect {
 }
 /// Things associated with the /products endpoinnt
 pub mod product {
+    use serde::{Deserialize, Serialize};
     use serde_json::value::{Map, Value};
     /// The main product struct
     #[derive(Serialize, Deserialize, Debug)]

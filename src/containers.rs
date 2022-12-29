@@ -1,4 +1,5 @@
 use crate::gog::*;
+use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
 #[derive(Serialize, Deserialize, Debug)]

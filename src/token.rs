@@ -1,7 +1,9 @@
 use crate::error::{ErrorKind::*, *};
+use log::{error, info, warn};
 use regex::*;
 use reqwest;
 use select::{document::*, predicate::*};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::time::SystemTime;
 // fn convert_rsession(err: ::user_agent::ReqwestSessionError) -> crate::error::Error {
