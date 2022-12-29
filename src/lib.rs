@@ -243,7 +243,7 @@ impl Gog {
             EMBD,
             &("/users/info/".to_string() + &uid.to_string()),
             map_p!({
-            "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap()
+            "expand": expand.iter().fold("".to_string(), fold_mult)
             }),
         )
     }
@@ -434,11 +434,10 @@ impl Gog {
             API,
             "/products",
             map_p!({
-                "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap(),
-                "ids": ids.iter().try_fold("".to_string(), |acc, x|{
-                    let done : Result<String> = Ok(acc +"," +&x.to_string());
-                    done
-                }).unwrap()
+                "expand": expand.iter().fold("".to_string(), fold_mult),
+                "ids": ids.iter().fold("".to_string(), |acc, x|{
+                    acc + "," + &x.to_string()
+                })
             }),
         )
     }
@@ -546,8 +545,7 @@ impl Gog {
     pub fn newsletter_subscription(&self, enabled: bool) -> EmptyResponse {
         self.rget(
             EMBD,
-            &("/account/save_newsletter_subscription/".to_string()
-                + &bool_to_int(enabled).to_string()),
+            &("/account/save_newsletter_subscription/".to_string() + &(enabled as i32).to_string()),
             None,
         )
     }
@@ -556,7 +554,7 @@ impl Gog {
     pub fn promo_subscription(&self, enabled: bool) -> EmptyResponse {
         self.rget(
             EMBD,
-            &("/account/save_promo_subscription/".to_string() + &bool_to_int(enabled).to_string()),
+            &("/account/save_promo_subscription/".to_string() + &(enabled as i32).to_string()),
             None,
         )
     }
@@ -565,8 +563,7 @@ impl Gog {
     pub fn wishlist_subscription(&self, enabled: bool) -> EmptyResponse {
         self.rget(
             EMBD,
-            &("/account/save_wishlist_notification/".to_string()
-                + &bool_to_int(enabled).to_string()),
+            &("/account/save_wishlist_notification/".to_string() + &(enabled as i32).to_string()),
             None,
         )
     }
@@ -816,16 +813,8 @@ impl Gog {
     }
 }
 
-fn fold_mult(acc: String, now: &String) -> Result<String> {
-    Ok(acc + "," + now)
-}
-
-fn bool_to_int(b: bool) -> i32 {
-    let mut par = 0;
-    if b {
-        par = 1;
-    }
-    par
+fn fold_mult(acc: String, now: &String) -> String {
+    acc + "," + now
 }
 
 fn vec_to_u32(data: &[u8]) -> u32 {
