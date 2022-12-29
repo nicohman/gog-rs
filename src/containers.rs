@@ -6,6 +6,7 @@ use serde_json::value::Value;
 pub struct OwnedGames {
     pub owned: Vec<i64>,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GameDetailsP {
@@ -25,6 +26,7 @@ pub struct GameDetailsP {
     pub is_base_product_missing: bool,
     pub missing_base_product: Option<Value>,
 }
+
 impl GameDetailsP {
     // Yes, this is bad. Yes, I am sorry.
     pub fn into_details(self, down: Downloads) -> GameDetails {
@@ -59,14 +61,17 @@ impl GameDetailsP {
         }
     }
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Success {
     pub success: bool,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Id {
     pub id: String,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StatusDel {
     pub status: String,

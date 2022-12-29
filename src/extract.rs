@@ -11,16 +11,19 @@ use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::*;
+
 pub struct ToExtract {
     pub unpacker: bool,
     pub mojosetup: bool,
     pub data: bool,
 }
+
 #[derive(Debug)]
 pub enum EOCDOffset {
     Offset(usize),
     Offset64(usize),
 }
+
 #[derive(Debug)]
 pub struct CentralDirectory {
     pub header: u32,
@@ -33,6 +36,7 @@ pub struct CentralDirectory {
     pub comment_length: u16,
     pub comment: String,
 }
+
 impl CentralDirectory {
     pub fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Self {
         let header = read_32(reader);
@@ -65,6 +69,7 @@ impl CentralDirectory {
         }
     }
 }
+
 #[derive(Debug)]
 pub struct CentralDirectory64 {
     pub header: u32,
@@ -105,6 +110,7 @@ impl CentralDirectory64 {
         }
     }
 }
+
 #[derive(Debug)]
 pub struct CDEntry {
     pub header: u32,
@@ -129,6 +135,7 @@ pub struct CDEntry {
     pub end_offset: u64,
     pub start_offset: u64,
 }
+
 impl CDEntry {
     pub fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Self {
         let header = read_32(reader);
@@ -207,6 +214,7 @@ fn read_64<R: Read>(reader: &mut BufReader<R>) -> u64 {
     reader.read_exact(&mut buffer).unwrap();
     u64::from_le_bytes(buffer)
 }
+
 #[derive(Debug)]
 pub struct ZipData {
     pub url: String,
@@ -214,7 +222,8 @@ pub struct ZipData {
     pub sizes: (usize, usize),
     pub cd: Option<CentralDirectory>,
 }
-/// When given a file descriptor for a GOG Game installer and output directory, extracts out the different parts of it as unpacker.sh, mojosetup.tar.gz, and data.zip.
+
+// When given a file descriptor for a GOG Game installer and output directory, extracts out the different parts of it as unpacker.sh, mojosetup.tar.gz, and data.zip.
 pub fn extract<N>(in_file: &mut File, out_string: N, extract: ToExtract) -> Result<()>
 where
     N: Into<String>,

@@ -23,11 +23,13 @@ fn get_gog() -> Gog {
     token = token.refresh().unwrap();
     Gog::new(token)
 }
+
 #[test]
 fn get_games() {
     let gog = get_gog();
     gog.get_games().unwrap();
 }
+
 #[test]
 fn get_pub_info() {
     let gog = get_gog();
@@ -38,6 +40,7 @@ fn get_pub_info() {
     ];
     gog.get_pub_info(49171277422358, exp).unwrap();
 }
+
 #[test]
 fn get_game_details() {
     let gog = get_gog();
@@ -49,16 +52,19 @@ fn wishlist() {
     let gog = get_gog();
     gog.wishlist().unwrap();
 }
+
 #[test]
 fn add_wishlist() {
     let gog = get_gog();
     gog.add_wishlist(1096313866).unwrap();
 }
+
 #[test]
 fn rm_wishlist() {
     let gog = get_gog();
     gog.rm_wishlist(1096313866).unwrap();
 }
+
 #[test]
 fn product() {
     let exp_game: Vec<String> = vec![
@@ -70,41 +76,48 @@ fn product() {
     let gog = get_gog();
     gog.product(vec![1452598881, 1096313866], exp_game).unwrap();
 }
+
 #[test]
 fn game_ratings() {
     let gog = get_gog();
     gog.game_ratings().unwrap();
 }
+
 #[test]
 fn filtered() {
     let gog = get_gog();
     gog.get_filtered_products(FilterParams::from_one(MediaType(1)))
         .unwrap();
 }
+
 #[test]
 fn filtered_all() {
     let gog = get_gog();
     gog.get_all_filtered_products(FilterParams::from_one(MediaType(1)))
         .unwrap();
 }
+
 #[test]
 fn filtered_os() {
     let gog = get_gog();
     gog.get_filtered_products(FilterParams::from_one(OS(Linux)))
         .unwrap();
 }
+
 #[test]
 fn download() {
     let gog = get_gog();
     let details = gog.get_game_details(OWNED_GAME_ID).unwrap();
     gog.download_game(details.downloads.linux.unwrap());
 }
+
 #[test]
 fn filtered_search() {
     let gog = get_gog();
     gog.get_filtered_products(FilterParams::from_one(Search("Not A Hero".to_string())))
         .unwrap();
 }
+
 #[test]
 fn filtered_unowned() {
     let gog = get_gog();
@@ -125,22 +138,25 @@ fn connect_status() {
         }
     }
 }
+
 #[test]
 fn friends() {
     let gog = get_gog();
     gog.friends().unwrap();
 }
+
 #[test]
 fn extract_data() {
     let gog = get_gog();
     let details = gog.get_game_details(OWNED_GAME_ID).unwrap();
     assert!(gog.extract_data(details.downloads.linux.unwrap()).is_ok())
 }
+
 #[test]
 #[ignore]
 fn extract() {
     use gog::extract::*;
-    let mut in_file = File::open("Not A Hero").unwrap();
+    let mut in_file = File::open("beneath_a_steel_sky_en_gog_2_20150.sh").unwrap();
     extract(
         &mut in_file,
         ".",

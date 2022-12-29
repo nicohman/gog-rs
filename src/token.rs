@@ -6,64 +6,69 @@ use select::{document::*, predicate::*};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::time::SystemTime;
-// fn convert_rsession(err: ::user_agent::ReqwestSessionError) -> crate::error::Error {
-//     ErrorKind::SessionNetwork(err).into()
-// }
-/// An OAuth token. Will usually expire after an hour.
+
+// An OAuth token. Will usually expire after an hour.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Token {
-    /// How many seconds before this token expires
+    // How many seconds before this token expires
     pub expires_in: u64,
     pub scope: String,
     pub token_type: String,
     pub access_token: String,
-    /// The uid of the user this token corresponds to
+    // The uid of the user this token corresponds to
     pub user_id: String,
-    /// The token that refresh uses
+    // The token that refresh uses
     pub refresh_token: String,
     pub session_id: String,
     #[serde(default = "cur_date")]
     pub updated_at: u64,
 }
+
 fn cur_date() -> u64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .expect("System time is before Unix Epoch")
         .as_secs()
 }
+
 impl Token {
-    /// Creates a token from a response from /token
+    // Creates a token from a response from /token
     pub fn from_response(response: impl Into<String>) -> Result<Token> {
         Ok(serde_json::from_str(response.into().as_str())?)
     }
-    /// Fetches a token using a login code
+
+    // Fetches a token using a login code
     pub fn from_login_code(code: impl Into<String>) -> Result<Token> {
         let res = reqwest::blocking::get("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient&layout=client2&code=".to_string()+&code.into()+"")?;
         let text = res.text()?;
         Token::from_response(text)
     }
+
     pub fn from_home_code(code: impl Into<String>) -> Result<Token> {
         let url = format!("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=authorization_code&redirect_uri=https%3A%2F%2Fwww.gog.com%2Fon_login_success&layout=client2&code={}", code.into());
         let res = reqwest::blocking::get(url)?;
         let text = res.text()?;
         Token::from_response(text)
     }
-    /// Checks if token has expired
+
+    // Checks if token has expired
     pub fn is_expired(&self) -> bool {
         (self.updated_at + self.expires_in) as i64 - cur_date() as i64 <= 0
     }
-    /// Attempts to fetch an updated token
+
+    // Attempts to fetch an updated token
     pub fn refresh(&self) -> Result<Token> {
         let res = reqwest::blocking::get("https://auth.gog.com/token?client_id=46899977096215655&client_secret=9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9&grant_type=refresh_token&redirect_uri=https://embed.gog.com/on_login_success?origin=client&refresh_token=".to_string()+&self.refresh_token)?;
         Ok(serde_json::from_str(&res.text()?)?)
     }
-    /// Tries to log into GOG using an username and password. The
-    /// two_step_token_fn should be a callback that returns the two step token
-    /// if one is required, as a string.
-    ///
-    /// If the error returned is of the kind NotAvailable, the captcha has been
-    /// triggered on the login form. There are five login attempts allowed per
-    /// day before the captcha is triggered.
+
+    // Tries to log into GOG using an username and password. The
+    // two_step_token_fn should be a callback that returns the two step token
+    // if one is required, as a string.
+    //
+    // If the error returned is of the kind NotAvailable, the captcha has been
+    // triggered on the login form. There are five login attempts allowed per
+    // day before the captcha is triggered.
     pub fn login<F>(
         username: impl Into<String>,
         password: impl Into<String>,

@@ -1,9 +1,12 @@
 use serde::{Deserialize, Serialize};
 use serde_json::value::{Map, Value};
+use status::*;
 use std::collections::BTreeMap;
 use std::fmt;
+
 type GMap<K, V> = BTreeMap<K, V>;
-/// The domains that the API requests will be made to
+
+// The domains that the API requests will be made to
 pub mod domains {
     pub static API: &str = "https://api.gog.com";
     pub static CFG: &str = "https://cfg.gog.com";
@@ -17,12 +20,14 @@ pub mod domains {
     pub static AUTH: &str = "https://auth.gog.com";
     pub static BASE: &str = "https://gog.com";
 }
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum OS {
     Linux,
     Windows,
     MacOS,
 }
+
 impl OS {
     fn codes(&self) -> String {
         match self {
@@ -33,7 +38,8 @@ impl OS {
         .to_string()
     }
 }
-/// Available currencies
+
+// Available currencies
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Currency {
     USD,
@@ -48,12 +54,14 @@ pub enum Currency {
     SEK,
     DKK,
 }
+
 impl fmt::Display for Currency {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-/// Available languages
+
+// Available languages
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Language {
     /// en-US
@@ -69,7 +77,8 @@ pub enum Language {
     /// zh-HANS
     ZH,
 }
-/// Shelf background styles
+
+// Shelf background styles
 pub enum ShelfBackground {
     Wood,
     MateBlack,
@@ -78,6 +87,7 @@ pub enum ShelfBackground {
     White,
     PianoBlack,
 }
+
 impl ShelfBackground {
     pub fn as_str(&self) -> &str {
         use ShelfBackground::*;
@@ -91,6 +101,7 @@ impl ShelfBackground {
         }
     }
 }
+
 impl fmt::Display for Language {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let res = match &self {
@@ -104,7 +115,8 @@ impl fmt::Display for Language {
         write!(f, "{}", res)
     }
 }
-/// Statuses from get_pub_info
+
+// Statuses from get_pub_info
 pub mod status {
     use serde::{Deserialize, Serialize};
 
@@ -112,12 +124,13 @@ pub mod status {
     #[serde(rename_all = "camelCase")]
     pub struct FriendStatus {
         pub id: String,
-        /// 0 is no friend status, 1 is having sent a friend request to this user, 2 is them having
-        ///   sent you a friend request, and 3 is currently being friends
+        // 0 is no friend status, 1 is having sent a friend request to this user, 2 is them having
+        //   sent you a friend request, and 3 is currently being friends
         pub status: i32,
         pub date_created: Option<String>,
         pub date_accepted: Option<String>,
     }
+
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct WishlistStatus {
@@ -125,11 +138,13 @@ pub mod status {
         pub sharing: i32,
         pub url: String,
     }
+
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct BlockedStatus {
         pub blocked: bool,
     }
+
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct ChatStatus {
@@ -137,12 +152,14 @@ pub mod status {
         pub is_chat_restricted: bool,
     }
 }
-/// GOG Connect-related structs
+
+// GOG Connect-related structs
 pub mod connect {
     use serde::{Deserialize, Serialize};
 
     use crate::gog::GMap;
-    /// A GOG Connect-linked steam account
+
+    // A GOG Connect-linked steam account
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct LinkedSteam {
@@ -150,7 +167,8 @@ pub mod connect {
         pub user: SteamUser,
         pub exchangable_steam_products: String,
     }
-    /// Actual info on the steam account
+
+    // Actual info on the steam account
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct SteamUser {
@@ -160,21 +178,24 @@ pub mod connect {
         pub steam_username: String,
         pub steam_avatar: String,
     }
-    /// GOG Connect games status. Items' key is a gameid.
+
+    // GOG Connect games status. Items' key is a gameid.
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct ConnectStatus {
         pub href: String,
         pub items: GMap<String, ConnectGame>,
     }
-    ///A GOG Connect game
+
+    // A GOG Connect game
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct ConnectGame {
         pub id: i64,
         pub status: ConnectGameStatus,
     }
-    /// The status of a GOG Connect game
+
+    // The status of a GOG Connect game
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum ConnectGameStatus {
@@ -183,11 +204,13 @@ pub mod connect {
         Unavailable,
     }
 }
-/// Things associated with the /products endpoinnt
+
+// Things associated with the /products endpoinnt
 pub mod product {
     use serde::{Deserialize, Serialize};
     use serde_json::value::{Map, Value};
-    /// The main product struct
+
+    // The main product struct
     #[derive(Serialize, Deserialize, Debug)]
     pub struct Product {
         pub id: i64,
@@ -214,7 +237,7 @@ pub mod product {
         pub changelog: Option<Value>,
     }
 
-    /// What OS' this product supports
+    // What OS' this product supports
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct OSSupport {
@@ -222,7 +245,8 @@ pub mod product {
         pub osx: bool,
         pub linux: bool,
     }
-    /// Various links to things related to a game
+
+    // Various links to things related to a game
     #[derive(Serialize, Deserialize, Debug)]
     pub struct Links {
         pub purchase_link: String,
@@ -230,13 +254,15 @@ pub mod product {
         pub support: String,
         pub forum: String,
     }
-    /// Whether or not a game is currently being developed
+
+    // Whether or not a game is currently being developed
     #[derive(Serialize, Deserialize, Debug)]
     pub struct InDev {
         pub active: bool,
         pub until: Option<String>,
     }
-    /// Logos/Icons for a game
+
+    // Logos/Icons for a game
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct Images {
@@ -247,11 +273,13 @@ pub mod product {
         pub sidebar_icon: String,
         pub sidebar_icon2x: String,
     }
+
     #[derive(Serialize, Deserialize, Debug)]
     pub struct DownObject {
         pub installers: Vec<Installer>,
     }
-    /// An installer & its info
+
+    // An installer & its info
     #[derive(Serialize, Deserialize, Debug)]
     pub struct Installer {
         pub id: String,
@@ -263,47 +291,54 @@ pub mod product {
         pub total_size: i64,
         pub files: Vec<File>,
     }
-    /// A specific downloadable file
+
+    // A specific downloadable file
     #[derive(Serialize, Deserialize, Debug)]
     pub struct File {
         pub id: String,
         pub size: i64,
         pub downlink: String,
     }
-    /// Descriptions of a game
+
+    // Descriptions of a game
     #[derive(Serialize, Deserialize, Debug)]
     pub struct Description {
         pub lead: String,
         pub full: String,
         pub whats_cool_about_it: String,
     }
-    /// A specific developer-provided screenshot
+
+    // A specific developer-provided screenshot
     #[derive(Serialize, Deserialize, Debug)]
     pub struct Screenshot {
         pub image_id: String,
         pub formatter_template_url: String,
         pub formatted_images: Vec<FormattedImage>,
     }
+
     #[derive(Serialize, Deserialize, Debug)]
     pub struct FormattedImage {
         pub formatter_name: String,
         pub image_url: String,
     }
 }
-/// Information about a friend
+
+// Information about a friend
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Friend {
     pub user_id: String,
     pub username: String,
     pub is_employee: bool,
 }
-/// Returned as part of Friends endpoint. Contains URLs to friend's avatar
+
+// Returned as part of Friends endpoint. Contains URLs to friend's avatar
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MediumImages {
     pub medium: String,
     pub medium_2x: String,
 }
-/// An user's avatar urls
+
+// An user's avatar urls
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Avatars {
@@ -314,8 +349,8 @@ pub struct Avatars {
     pub large: String,
     pub large2x: String,
 }
-use status::*;
-///Data on the currently logged-in user
+
+//Data on the currently logged-in user
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserData {
@@ -333,19 +368,22 @@ pub struct UserData {
     pub personalized_product_prices: Vec<Map<String, Value>>,
     pub personalized_series_prices: Vec<Map<String, Value>>,
 }
-/// Information on a currency
+
+// Information on a currency
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CurrencyInfo {
     pub code: Currency,
     pub symbol: String,
 }
-/// Information on a language
+
+// Information on a language
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LanguageInfo {
     pub code: String,
     pub name: String,
 }
-/// The checksums of various user data
+
+// The checksums of various user data
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Checksum {
     pub cart: Option<String>,
@@ -354,7 +392,8 @@ pub struct Checksum {
     pub reviews_votes: Option<String>,
     pub games_rating: Option<String>,
 }
-/// Waiting notifications for a user
+
+// Waiting notifications for a user
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Updates {
@@ -365,7 +404,8 @@ pub struct Updates {
     pub forum: Option<i32>,
     pub total: Option<i32>,
 }
-/// Publically available info about an user
+
+// Publically available info about an user
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PubInfo {
@@ -378,7 +418,8 @@ pub struct PubInfo {
     pub blocked_status: Option<status::BlockedStatus>,
     pub chat_status: Option<status::ChatStatus>,
 }
-/// All of the details of a specific game
+
+// All of the details of a specific game
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GameDetails {
@@ -398,6 +439,7 @@ pub struct GameDetails {
     pub is_base_product_missing: bool,
     pub missing_base_product: Option<Value>,
 }
+
 impl GameDetails {
     pub fn all(self, linux: bool) -> Vec<Download> {
         let downloads = if linux {
@@ -427,10 +469,12 @@ impl GameDetails {
             .collect()
     }
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FilterParams {
     pub params: Vec<FilterParam>,
 }
+
 impl FilterParams {
     pub fn from_vec(p: Vec<FilterParam>) -> FilterParams {
         FilterParams { params: p }
@@ -447,6 +491,7 @@ impl FilterParams {
         s
     }
 }
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum FilterParam {
     MediaType(i32),
@@ -454,6 +499,7 @@ pub enum FilterParam {
     Search(String),
     Page(i32),
 }
+
 impl fmt::Display for FilterParam {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use FilterParam::*;
@@ -466,6 +512,7 @@ impl fmt::Display for FilterParam {
         }
     }
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredProducts {
@@ -475,7 +522,8 @@ pub struct FilteredProducts {
     pub total_products: i64,
     pub products_per_page: i64,
 }
-/// Details of a product, returned from get_filtered_products
+
+// Details of a product, returned from get_filtered_products
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ProductDetails {
@@ -495,7 +543,8 @@ pub struct ProductDetails {
     pub is_new: bool,
     pub is_hidden: bool,
 }
-/// Details of a product, returned from get_products
+
+// Details of a product, returned from get_products
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UnownedProductDetails {
@@ -524,6 +573,7 @@ pub struct UnownedProductDetails {
     pub is_game: bool,
     pub slug: String,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Price {
@@ -539,12 +589,14 @@ pub struct Price {
     pub is_bonus_store_credit_included: bool,
     pub bonus_store_credit_amount: String,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Availability {
     pub is_available: bool,
     pub is_available_in_account: bool,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SalesVisibility {
@@ -554,12 +606,14 @@ pub struct SalesVisibility {
     pub from: i64,
     pub to: i64,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DurationEnd {
     pub date: String,
     pub timezone_type: i64,
     pub timezone: String,
 }
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct WorksOn {
@@ -567,7 +621,8 @@ pub struct WorksOn {
     pub linux: bool,
     pub mac: bool,
 }
-/// An extra that comes with a game, like wallpapers or soundtrack
+
+// An extra that comes with a game, like wallpapers or soundtrack
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Extra {
@@ -578,7 +633,8 @@ pub struct Extra {
     pub info: i64,
     pub size: String,
 }
-/// A 'tag' on a game like Favorite
+
+// A 'tag' on a game like Favorite
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Tag {
@@ -586,14 +642,16 @@ pub struct Tag {
     pub name: String,
     pub product_count: String,
 }
-/// A set of builds for a game for different OSes
+
+// A set of builds for a game for different OSes
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Downloads {
     pub windows: Option<Vec<Download>>,
     pub mac: Option<Vec<Download>>,
     pub linux: Option<Vec<Download>>,
 }
-/// Information on an available build of a game
+
+// Information on an available build of a game
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Download {
@@ -604,20 +662,23 @@ pub struct Download {
     pub date: String,
     pub size: String,
 }
-/// A user's wishlist
+
+// A user's wishlist
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Wishlist {
-    /// Keys in wishlist are the game ids of wishlisted games
+    // Keys in wishlist are the game ids of wishlisted games
     pub wishlist: GMap<String, bool>,
     pub checksum: String,
 }
-/// A list of achivements from GOG
+
+// A list of achivements from GOG
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AchievementList {
     pub total_count: i32,
     pub items: Vec<Achievement>,
 }
-/// A GOG Galaxy Achievement
+
+// A GOG Galaxy Achievement
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Achievement {
     pub achievement_id: String,
