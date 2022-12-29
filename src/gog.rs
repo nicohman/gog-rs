@@ -71,22 +71,22 @@ pub enum Language {
 /// Shelf background styles
 pub enum ShelfBackground {
     Wood,
-    Mate_Black,
+    MateBlack,
     Glass,
     Chrome,
     White,
-    Piano_Black,
+    PianoBlack,
 }
 impl ShelfBackground {
     pub fn as_str(&self) -> &str {
         use ShelfBackground::*;
         match &self {
             Wood => "wood",
-            Mate_Black => "mate_black",
+            MateBlack => "mate_black",
             Glass => "glass",
             Chrome => "chrome",
             White => "white",
-            Piano_Black => "piano_black",
+            PianoBlack => "piano_black",
         }
     }
 }

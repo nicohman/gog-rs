@@ -217,19 +217,17 @@ impl Token {
                     } else {
                         Err(MissingField("Two step token required".to_string()).into())
                     }
+                } else if url.as_str().contains("on_login_success") {
+                    let code = url
+                        .query_pairs()
+                        .filter(|(k, _v)| k == "code")
+                        .map(|x| x.1)
+                        .next()
+                        .unwrap();
+                    Token::from_home_code(code)
                 } else {
-                    if url.as_str().contains("on_login_success") {
-                        let code = url
-                            .query_pairs()
-                            .filter(|(k, _v)| k == "code")
-                            .map(|x| x.1)
-                            .next()
-                            .unwrap();
-                        Token::from_home_code(code)
-                    } else {
-                        error!("Login failed. Incorrect credentials");
-                        Err(IncorrectCredentials.into())
-                    }
+                    error!("Login failed. Incorrect credentials");
+                    Err(IncorrectCredentials.into())
                 }
             } else {
                 Err(MissingField("login id".to_string()).into())

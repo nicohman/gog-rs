@@ -738,9 +738,9 @@ impl Gog {
                 files[i].end_offset = files[i + 1].start_offset;
             }
             zips.push(ZipData {
-                sizes: sizes,
-                files: files,
-                url: url.clone(),
+                sizes,
+                files,
+                url,
                 cd: None,
             });
         }
