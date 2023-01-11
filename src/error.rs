@@ -1,3 +1,5 @@
+use error_chain::error_chain;
+
 error_chain! {
     types {
         Error, ErrorKind, ResultExt, Result;
@@ -25,10 +27,6 @@ error_chain! {
         IncorrectCredentials {
             description("the credentials provided were incorrect")
             display("the credentials provided were incorrect")
-        }
-        SessionNetwork(err: ::user_agent::ReqwestSessionError) {
-            description("session error")
-            display("session error")
         }
     }
 }

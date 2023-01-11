@@ -1,22 +1,7 @@
 //! This crate provides an easy interface to communicate with the not-so-easy (unofficial) GOG API.
 //! Many thanks to [Yepoleb](https://github.com/Yepoleb), who made
 //! [this](https://gogapidocs.readthedocs.io/en/latest/index.html) very helpful set of docs.
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate serde_json;
-#[macro_use]
-extern crate error_chain;
-#[macro_use]
-extern crate log;
-extern crate cookie;
-extern crate curl;
-extern crate regex;
-extern crate reqwest;
-extern crate select;
-extern crate serde;
-extern crate time;
-extern crate user_agent;
+use serde_json::json;
 mod containers;
 /// Provides error-handling logic
 mod error;
@@ -28,21 +13,20 @@ pub mod gog;
 pub mod token;
 use connect::*;
 use containers::*;
-use curl::easy::Easy;
 use curl::easy::{Easy2, Handler, WriteError};
 use domains::*;
 /// Main error for GOG calls
 pub use error::Error;
 pub use error::ErrorKind;
 pub use error::Result;
-use extract::EOCDOffset::*;
 use extract::*;
 use gog::*;
 use product::*;
 use regex::*;
+use reqwest::blocking::{Client, Response};
 use reqwest::header::*;
-use reqwest::RedirectPolicy;
-use reqwest::{Client, Method, Response};
+use reqwest::redirect::Policy;
+use reqwest::Method;
 use serde::de::DeserializeOwned;
 use serde_json::value::{Map, Value};
 use std::cell::RefCell;
@@ -51,16 +35,19 @@ use std::io::BufReader;
 use std::io::Read;
 use token::Token;
 use ErrorKind::*;
+
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
-/// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
+
+// This is returned from functions that GOG doesn't return anything for. Should only be used for error-checking to see if requests failed, etc.
 pub type EmptyResponse = ::std::result::Result<Response, Error>;
 macro_rules! map_p {
     ($($js: tt)+) => {
         Some(json!($($js)+).as_object().unwrap().clone())
     }
 }
-/// The main GOG Struct that you'll use to make API calls.
+
+// The main GOG Struct that you'll use to make API calls.
 pub struct Gog {
     pub token: RefCell<Token>,
     pub client: RefCell<Client>,
@@ -68,43 +55,49 @@ pub struct Gog {
     pub auto_update: bool,
 }
 impl Gog {
-    /// Initializes out of a token from a login code
+    // Initializes out of a token from a login code
     pub fn from_login_code(code: &str) -> Gog {
         Gog::from_token(Token::from_login_code(code).unwrap())
     }
-    /// Creates using a pre-made token
+
+    // Creates using a pre-made token
     pub fn new(token: Token) -> Gog {
         Gog::from_token(token)
     }
+
     fn from_token(token: Token) -> Gog {
         let headers = Gog::headers_token(&token.access_token);
         let mut client = Client::builder();
-        let mut client_re = Client::builder().redirect(RedirectPolicy::none());
+        let mut client_re = Client::builder().redirect(Policy::none());
         client = client.default_headers(headers.clone());
         client_re = client_re.default_headers(headers);
-        return Gog {
+        Gog {
             token: RefCell::new(token),
             client: RefCell::new(client.build().unwrap()),
             client_noredirect: RefCell::new(client_re.build().unwrap()),
             auto_update: true,
-        };
+        }
     }
+
     fn update_token(&self, token: Token) {
         let headers = Gog::headers_token(&token.access_token);
         let client = Client::builder();
-        let client_re = Client::builder().redirect(RedirectPolicy::none());
+        let client_re = Client::builder().redirect(Policy::none());
         self.client
             .replace(client.default_headers(headers.clone()).build().unwrap());
         self.client_noredirect
             .replace(client_re.default_headers(headers).build().unwrap());
         self.token.replace(token);
     }
+
     pub fn uid_string(&self) -> String {
         self.token.borrow().user_id.clone()
     }
+
     pub fn uid(&self) -> i64 {
         self.token.borrow().user_id.parse().unwrap()
     }
+
     fn headers_token(at: &str) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
@@ -113,8 +106,9 @@ impl Gog {
         );
         // GOG now requires this magic cookie to be included in all requests.
         headers.insert("CSRF", "csrf=true".parse().unwrap());
-        return headers;
+        headers
     }
+
     fn rget(
         &self,
         domain: &str,
@@ -123,6 +117,7 @@ impl Gog {
     ) -> Result<Response> {
         self.rreq(GET, domain, path, params)
     }
+
     fn rpost(
         &self,
         domain: &str,
@@ -131,6 +126,7 @@ impl Gog {
     ) -> Result<Response> {
         self.rreq(POST, domain, path, params)
     }
+
     fn rreq(
         &self,
         method: Method,
@@ -140,17 +136,18 @@ impl Gog {
     ) -> Result<Response> {
         if self.token.borrow().is_expired() {
             if self.auto_update {
-                self.update_token(self.token.borrow().refresh()?);
-                return self.rreq(method, domain, path, params);
+                let new_token = self.token.borrow().refresh()?;
+                self.update_token(new_token);
+                self.rreq(method, domain, path, params)
             } else {
-                return Err(ExpiredToken.into());
+                Err(ExpiredToken.into())
             }
         } else {
             let mut url = domain.to_string() + path;
-            if params.is_some() {
-                let params = params.unwrap();
-                if params.len() > 0 {
-                    url = url + "?";
+            if let Some(temp_params) = params {
+                let params = temp_params;
+                if !params.is_empty() {
+                    url += "?";
                     for (k, v) in params.iter() {
                         url = url + k + "=" + &v.to_string() + "&";
                     }
@@ -160,13 +157,15 @@ impl Gog {
             Ok(self.client.borrow().request(method, &url).send()?)
         }
     }
+
     fn fget<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<T>
     where
         T: DeserializeOwned,
     {
         self.freq(GET, domain, path, params)
     }
-    fn fpost<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<T>
+
+    fn _fpost<T>(&self, domain: &str, path: &str, params: Option<Map<String, Value>>) -> Result<T>
     where
         T: DeserializeOwned,
     {
@@ -183,10 +182,11 @@ impl Gog {
     where
         T: DeserializeOwned,
     {
-        let mut res = self.rreq(method, domain, path, params)?;
+        let res = self.rreq(method, domain, path, params)?;
         let st = res.text()?;
         Ok(serde_json::from_str(&st)?)
     }
+
     fn nfreq<T>(
         &self,
         method: Method,
@@ -200,11 +200,12 @@ impl Gog {
     {
         let r: Map<String, Value> = self.freq(method, domain, path, params)?;
         if r.contains_key(nested) {
-            return Ok(serde_json::from_str(&r.get(nested).unwrap().to_string())?);
+            Ok(serde_json::from_str(&r.get(nested).unwrap().to_string())?)
         } else {
-            return Err(MissingField(nested.to_string()).into());
+            Err(MissingField(nested.to_string()).into())
         }
     }
+
     fn nfget<T>(
         &self,
         domain: &str,
@@ -217,6 +218,7 @@ impl Gog {
     {
         self.nfreq(GET, domain, path, params, nested)
     }
+
     fn nfpost<T>(
         &self,
         domain: &str,
@@ -230,42 +232,46 @@ impl Gog {
         self.nfreq(POST, domain, path, params, nested)
     }
 
-    /// Gets the data of the user that is currently logged in
+    // Gets the data of the user that is currently logged in
     pub fn get_user_data(&self) -> Result<UserData> {
         self.fget(EMBD, "/userData.json", None)
     }
-    /// Gets any publically available data about a user
+
+    // Gets any publically available data about a user
     pub fn get_pub_info(&self, uid: i64, expand: Vec<String>) -> Result<PubInfo> {
         self.fget(
             EMBD,
             &("/users/info/".to_string() + &uid.to_string()),
             map_p!({
-            "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap()
+            "expand": expand.iter().fold("".to_string(), fold_mult)
             }),
         )
     }
-    /// Gets a user's owned games. Only gameids.
+
+    // Gets a user's owned games. Only gameids.
     pub fn get_games(&self) -> Result<Vec<i64>> {
         let r: OwnedGames = self.fget(EMBD, "/user/data/games", None)?;
         Ok(r.owned)
     }
-    /// Gets more info about a game by gameid
+
+    // Gets more info about a game by gameid
     pub fn get_game_details(&self, game_id: i64) -> Result<GameDetails> {
         let mut res: GameDetailsP = self.fget(
             EMBD,
             &("/account/gameDetails/".to_string() + &game_id.to_string() + ".json"),
             None,
         )?;
-        if res.downloads.len() > 0 {
+        if !res.downloads.is_empty() {
             res.downloads[0].remove(0);
             let downloads: Downloads =
                 serde_json::from_str(&serde_json::to_string(&res.downloads[0][0])?)?;
-            Ok(res.to_details(downloads))
+            Ok(res.into_details(downloads))
         } else {
             Err(NotAvailable.into())
         }
     }
-    /// Returns a vec of game parts
+
+    // Returns a vec of game parts
     pub fn download_game(&self, downloads: Vec<Download>) -> Vec<Result<Response>> {
         downloads
             .iter()
@@ -273,9 +279,9 @@ impl Gog {
                 let mut url = BASE.to_string() + &x.manual_url;
                 let mut response;
                 loop {
-                    let temp_response = self.client_noredirect.borrow().get(&url).send();
-                    if temp_response.is_ok() {
-                        response = temp_response.unwrap();
+                    let temp_response = self.client_noredirect.borrow().get(url).send();
+                    if let Ok(temp) = temp_response {
+                        response = temp;
                         let headers = response.headers();
                         // GOG appears to be inconsistent with returning either 301/302, so this just checks for a redirect location.
                         if headers.contains_key("location") {
@@ -296,7 +302,8 @@ impl Gog {
             })
             .collect()
     }
-    /// Hides a product from your library
+
+    // Hides a product from your library
     pub fn hide_product(&self, game_id: i64) -> EmptyResponse {
         self.rget(
             EMBD,
@@ -304,7 +311,8 @@ impl Gog {
             None,
         )
     }
-    /// Reveals a product in your library
+
+    // Reveals a product in your library
     pub fn reveal_product(&self, game_id: i64) -> EmptyResponse {
         self.rget(
             EMBD,
@@ -312,11 +320,13 @@ impl Gog {
             None,
         )
     }
-    /// Gets the wishlist of the current user
+
+    // Gets the wishlist of the current user
     pub fn wishlist(&self) -> Result<Wishlist> {
         self.fget(EMBD, "/user/wishlist.json", None)
     }
-    /// Adds an item to the wishlist. Returns wishlist
+
+    // Adds an item to the wishlist. Returns wishlist
     pub fn add_wishlist(&self, game_id: i64) -> Result<Wishlist> {
         self.fget(
             EMBD,
@@ -324,7 +334,8 @@ impl Gog {
             None,
         )
     }
-    /// Removes an item from wishlist. Returns wishlist
+
+    // Removes an item from wishlist. Returns wishlist
     pub fn rm_wishlist(&self, game_id: i64) -> Result<Wishlist> {
         self.fget(
             EMBD,
@@ -332,16 +343,19 @@ impl Gog {
             None,
         )
     }
-    /// Sets birthday of account. Date should be in ISO 8601 format
+
+    // Sets birthday of account. Date should be in ISO 8601 format
     pub fn save_birthday(&self, bday: &str) -> EmptyResponse {
         self.rget(EMBD, &("/account/save_birthday".to_string() + bday), None)
     }
-    /// Sets country of account. Country should be in ISO 3166 format
+
+    // Sets country of account. Country should be in ISO 3166 format
     pub fn save_country(&self, country: &str) -> EmptyResponse {
         self.rget(EMBD, &("/account/save_country".to_string() + country), None)
     }
-    /// Changes default currency. Currency is in ISO 4217 format. Only currencies supported are
-    /// ones in the currency enum.
+
+    // Changes default currency. Currency is in ISO 4217 format. Only currencies supported are
+    // ones in the currency enum.
     pub fn save_currency(&self, currency: Currency) -> EmptyResponse {
         self.rget(
             EMBD,
@@ -349,8 +363,9 @@ impl Gog {
             None,
         )
     }
-    /// Changes default language. Possible languages are available as constants in the langauge
-    /// enum.
+
+    // Changes default language. Possible languages are available as constants in the langauge
+    // enum.
     pub fn save_language(&self, language: Language) -> EmptyResponse {
         self.rget(
             EMBD,
@@ -358,7 +373,8 @@ impl Gog {
             None,
         )
     }
-    /// Gets info about the steam account linked to GOG Connect for the user id
+
+    // Gets info about the steam account linked to GOG Connect for the user id
     pub fn connect_account(&self, user_id: i64) -> Result<LinkedSteam> {
         self.fget(
             EMBD,
@@ -366,7 +382,8 @@ impl Gog {
             None,
         )
     }
-    /// Gets claimable status of currently available games on GOG Connect
+
+    // Gets claimable status of currently available games on GOG Connect
     pub fn connect_status(&self, user_id: i64) -> Result<ConnectStatus> {
         let st = self
             .rget(
@@ -383,14 +400,15 @@ impl Gog {
             let map: Map<String, Value> = serde_json::from_str(&st)?;
             if let Some(items) = map.get("items") {
                 let array = items.as_array();
-                if array.is_some() && array.unwrap().len() == 0 {
+                if array.is_some() && array.unwrap().is_empty() {
                     return Err(NotAvailable.into());
                 }
             }
         }
         Err(MissingField("items".to_string()).into())
     }
-    /// Scans Connect for claimable games
+
+    // Scans Connect for claimable games
     pub fn connect_scan(&self, user_id: i64) -> EmptyResponse {
         self.rget(
             EMBD,
@@ -400,7 +418,8 @@ impl Gog {
             None,
         )
     }
-    /// Claims all available Connect games
+
+    // Claims all available Connect games
     pub fn connect_claim(&self, user_id: i64) -> EmptyResponse {
         self.rget(
             EMBD,
@@ -408,21 +427,22 @@ impl Gog {
             None,
         )
     }
-    /// Returns detailed info about a product/products.
+
+    // Returns detailed info about a product/products.
     pub fn product(&self, ids: Vec<i64>, expand: Vec<String>) -> Result<Vec<Product>> {
         self.fget(
             API,
             "/products",
             map_p!({
-                "expand":expand.iter().try_fold("".to_string(), fold_mult).unwrap(),
-                "ids": ids.iter().try_fold("".to_string(), |acc, x|{
-                    let done : Result<String> = Ok(acc +"," +&x.to_string());
-                    done
-                }).unwrap()
+                "expand": expand.iter().fold("".to_string(), fold_mult),
+                "ids": ids.iter().fold("".to_string(), |acc, x|{
+                    acc + "," + &x.to_string()
+                })
             }),
         )
     }
-    /// Get a list of achievements for a game and user id
+
+    // Get a list of achievements for a game and user id
     pub fn achievements(&self, product_id: i64, user_id: i64) -> Result<AchievementList> {
         self.fget(
             GPLAY,
@@ -434,7 +454,8 @@ impl Gog {
             None,
         )
     }
-    /// Adds tag with tagid to product
+
+    // Adds tag with tagid to product
     pub fn add_tag(&self, product_id: i64, tag_id: i64) -> Result<bool> {
         let res: Result<Success> = self.fget(
             EMBD,
@@ -446,7 +467,8 @@ impl Gog {
         );
         res.map(|x| x.success)
     }
-    /// Removes tag with tagid from product
+
+    // Removes tag with tagid from product
     pub fn rm_tag(&self, product_id: i64, tag_id: i64) -> Result<bool> {
         self.nfget(
             EMBD,
@@ -458,9 +480,10 @@ impl Gog {
             "success",
         )
     }
-    /// Fetches info about a set of products owned by the user based on search criteria
+
+    // Fetches info about a set of products owned by the user based on search criteria
     pub fn get_filtered_products(&self, params: FilterParams) -> Result<FilteredProducts> {
-        //GOG.com url is just to avoid "cannot be a base" url parse error, as we only need the path anyways
+        // GOG.com url is just to avoid "cannot be a base" url parse error, as we only need the path anyways
         let url = reqwest::Url::parse(
             &("https://gog.com/account/getFilteredProducts".to_string()
                 + &params.to_query_string()),
@@ -469,7 +492,8 @@ impl Gog {
         let path = url.path().to_string() + "?" + url.query().unwrap();
         self.fget(EMBD, &path, None)
     }
-    /// Fetches info about all products matching criteria
+
+    // Fetches info about all products matching criteria
     pub fn get_all_filtered_products(&self, params: FilterParams) -> Result<Vec<ProductDetails>> {
         let url = reqwest::Url::parse(
             &("https://gog.com/account/getFilteredProducts".to_string()
@@ -491,9 +515,10 @@ impl Gog {
         }
         Ok(products.into_iter().flatten().collect())
     }
-    /// Fetches info about a set of products based on search criteria
+
+    // Fetches info about a set of products based on search criteria
     pub fn get_products(&self, params: FilterParams) -> Result<Vec<UnownedProductDetails>> {
-        //GOG.com url is just to avoid "cannot be a base" url parse error, as we only need the path anyways
+        // GOG.com url is just to avoid "cannot be a base" url parse error, as we only need the path anyways
         let url = reqwest::Url::parse(
             &("https://gog.com/games/ajax/filtered".to_string() + &params.to_query_string()),
         )
@@ -501,51 +526,49 @@ impl Gog {
         let path = url.path().to_string() + "?" + url.query().unwrap();
         self.nfget(EMBD, &path, None, "products")
     }
-    /// Creates a new tag. Returns the tag's id
+
+    // Creates a new tag. Returns the tag's id
     pub fn create_tag(&self, name: &str) -> Result<i64> {
         return self
             .nfget(EMBD, "/account/tags/add", map_p!({ "name": name }), "id")
             .map(|x: String| x.parse::<i64>().unwrap());
     }
-    /// Deletes a tag. Returns bool indicating success
+
+    // Deletes a tag. Returns bool indicating success
     pub fn delete_tag(&self, tag_id: i64) -> Result<bool> {
         let res: Result<StatusDel> =
             self.fget(EMBD, "/account/tags/delete", map_p!({ "tag_id": tag_id }));
-        res.map(|x| {
-            if x.status.as_str() == "deleted" {
-                return true;
-            } else {
-                return false;
-            }
-        })
+        res.map(|x| return x.status.as_str() == "deleted")
     }
-    /// Changes newsletter subscription status
+
+    // Changes newsletter subscription status
     pub fn newsletter_subscription(&self, enabled: bool) -> EmptyResponse {
         self.rget(
             EMBD,
-            &("/account/save_newsletter_subscription/".to_string()
-                + &bool_to_int(enabled).to_string()),
+            &("/account/save_newsletter_subscription/".to_string() + &(enabled as i32).to_string()),
             None,
         )
     }
-    /// Changes promo subscription status
+
+    // Changes promo subscription status
     pub fn promo_subscription(&self, enabled: bool) -> EmptyResponse {
         self.rget(
             EMBD,
-            &("/account/save_promo_subscription/".to_string() + &bool_to_int(enabled).to_string()),
+            &("/account/save_promo_subscription/".to_string() + &(enabled as i32).to_string()),
             None,
         )
     }
-    /// Changes wishlist subscription status
+
+    // Changes wishlist subscription status
     pub fn wishlist_subscription(&self, enabled: bool) -> EmptyResponse {
         self.rget(
             EMBD,
-            &("/account/save_wishlist_notification/".to_string()
-                + &bool_to_int(enabled).to_string()),
+            &("/account/save_wishlist_notification/".to_string() + &(enabled as i32).to_string()),
             None,
         )
     }
-    /// Shortcut function to enable or disable all subscriptions
+
+    // Shortcut function to enable or disable all subscriptions
     pub fn all_subscription(&self, enabled: bool) -> Vec<EmptyResponse> {
         vec![
             self.newsletter_subscription(enabled),
@@ -553,19 +576,22 @@ impl Gog {
             self.wishlist_subscription(enabled),
         ]
     }
-    /// Gets games this user has rated
+
+    // Gets games this user has rated
     pub fn game_ratings(&self) -> Result<Vec<(String, i64)>> {
         let g: Map<String, Value> =
             self.nfget(EMBD, "/user/games_rating.json", None, "games_rating")?;
         Ok(g.iter()
-            .map(|x| return (x.0.to_owned(), x.1.as_i64().unwrap()))
+            .map(|x| (x.0.to_owned(), x.1.as_i64().unwrap()))
             .collect::<Vec<(String, i64)>>())
     }
-    /// Gets reviews the user has voted on
+
+    // Gets reviews the user has voted on
     pub fn voted_reviews(&self) -> Result<Vec<i64>> {
-        return self.nfget(EMBD, "/user/review_votes.json", None, "reviews");
+        self.nfget(EMBD, "/user/review_votes.json", None, "reviews")
     }
-    /// Reports a review
+
+    // Reports a review
     pub fn report_review(&self, review_id: i32) -> Result<bool> {
         self.nfpost(
             EMBD,
@@ -574,7 +600,8 @@ impl Gog {
             "reported",
         )
     }
-    /// Sets library background style
+
+    // Sets library background style
     pub fn library_background(&self, bg: ShelfBackground) -> EmptyResponse {
         self.rpost(
             EMBD,
@@ -582,7 +609,8 @@ impl Gog {
             None,
         )
     }
-    /// Returns list of friends
+
+    // Returns list of friends
     pub fn friends(&self) -> Result<Vec<Friend>> {
         self.nfget(
             CHAT,
@@ -591,6 +619,7 @@ impl Gog {
             "items",
         )
     }
+
     fn get_sizes<R: Read>(&self, bufreader: &mut BufReader<R>) -> Result<(usize, usize)> {
         let mut buffer = String::new();
         let mut script_size = 0;
@@ -609,20 +638,16 @@ impl Gog {
                 break;
             }
             if script_size == 0 {
-                let captures = offset_reg.captures(&buffer);
-                if captures.is_some() {
-                    let un = captures.unwrap();
-                    if un.len() > 1 {
-                        script_size = un[1].to_string().parse().unwrap();
+                if let Some(captures) = offset_reg.captures(&buffer) {
+                    if captures.len() > 1 {
+                        script_size = captures[1].to_string().parse().unwrap();
                     }
                 }
             }
             if filesize == 0 {
-                let captures = filesize_reg.captures(&buffer);
-                if captures.is_some() {
-                    let un = captures.unwrap();
-                    if un.len() > 1 {
-                        filesize = un[1].to_string().parse().unwrap();
+                if let Some(captures) = filesize_reg.captures(&buffer) {
+                    if captures.len() > 1 {
+                        filesize = captures[1].to_string().parse().unwrap();
                     }
                 }
             }
@@ -630,7 +655,8 @@ impl Gog {
         }
         Ok((script_bytes, filesize))
     }
-    /// Downloadds a file parttally, using only access token instead of the full Gog struct
+
+    // Downloads a file partially, using only access token instead of the full Gog struct
     pub fn download_request_range_at<H: Handler>(
         at: impl Into<String>,
         url: impl Into<String>,
@@ -638,7 +664,7 @@ impl Gog {
         start: i64,
         end: i64,
     ) -> Result<Easy2<H>> {
-        let mut url = url.into();
+        let url = url.into();
         let mut easy = Easy2::new(handler);
         easy.url(&url)?;
         easy.range(&format!("{}-{}", start, end))?;
@@ -651,7 +677,8 @@ impl Gog {
         easy.perform()?;
         Ok(easy)
     }
-    /// Downloads a file partially
+
+    // Downloads a file partially
     pub fn download_request_range(
         &self,
         url: impl Into<String>,
@@ -669,7 +696,8 @@ impl Gog {
         .0
         .clone())
     }
-    /// Extracts data on downloads
+
+    // Extracts data on downloads
     pub fn extract_data(&self, downloads: Vec<Download>) -> Result<Vec<ZipData>> {
         let mut zips = vec![];
         let mut responses = self.download_game(downloads.clone());
@@ -677,11 +705,11 @@ impl Gog {
             let mut url = BASE.to_string() + &down.manual_url;
             let mut response;
             loop {
-                let temp_response = self.client_noredirect.borrow().get(&url).send();
-                if temp_response.is_ok() {
-                    response = temp_response.unwrap();
+                if let Ok(temp_response) = self.client_noredirect.borrow().get(&url).send() {
+                    response = temp_response;
                     let headers = response.headers();
-                    // GOG appears to be inconsistent with returning either 301/302, so this just checks for a redirect location.
+                    // GOG appears to be inconsistent with returning either 301/302,
+                    // so this just checks for a redirect location.
                     if headers.contains_key("location") {
                         url = headers
                             .get("location")
@@ -705,22 +733,15 @@ impl Gog {
                 .unwrap();
             let mut bufreader = BufReader::new(response);
             let sizes = self.get_sizes(&mut bufreader)?;
-            let offset = sizes.0 + sizes.1;
             let eocd_offset = self.get_eocd_offset(&url, size)?;
-            let mut off = 0;
-            match eocd_offset {
-                EOCDOffset::Offset(offset) => {
-                    off = offset;
-                }
-                EOCDOffset::Offset64(offset) => {
-                    off = offset;
-                }
+            let off = match eocd_offset {
+                EOCDOffset::Offset(offset) => offset,
+                EOCDOffset::Offset64(offset) => offset,
             };
-            let mut cd_offset = 0;
-            let mut records = 0;
-            let mut cd_size = 0;
-            let mut central_directory =
-                self.download_request_range(url.as_str(), off as i64, size)?;
+            let cd_offset;
+            let records;
+            let cd_size;
+            let central_directory = self.download_request_range(url.as_str(), off as i64, size)?;
             let mut cd_slice = central_directory.as_slice();
             let mut cd_reader = BufReader::new(&mut cd_slice);
             match eocd_offset {
@@ -734,11 +755,11 @@ impl Gog {
                     let cd = CentralDirectory64::from_reader(&mut cd_reader);
                     cd_offset = cd.cd_start as u64;
                     records = cd.cd_total;
-                    cd_size = cd.cd_size as u64;
+                    cd_size = cd.cd_size;
                 }
             };
-            let mut offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
-            let mut cd = self
+            let offset_beg = sizes.0 + sizes.1 + cd_offset as usize;
+            let cd = self
                 .download_request_range(
                     url.as_str(),
                     offset_beg as i64,
@@ -748,7 +769,7 @@ impl Gog {
             let mut slice = cd.as_slice();
             let mut full_reader = BufReader::new(&mut slice);
             let mut files = vec![];
-            for i in 0..records {
+            for _ in 0..records {
                 let mut entry = CDEntry::from_reader(&mut full_reader);
                 entry.start_offset = (sizes.0 + sizes.1) as u64 + entry.disk_offset.unwrap();
                 files.push(entry);
@@ -759,21 +780,20 @@ impl Gog {
                 files[i].end_offset = files[i + 1].start_offset;
             }
             zips.push(ZipData {
-                sizes: sizes,
-                files: files,
-                url: url.clone(),
+                sizes,
+                files,
+                url,
                 cd: None,
             });
         }
         Ok(zips)
     }
-    /// Gets the EOCD offset from an url
+
+    // Gets the EOCD offset from an url
     fn get_eocd_offset(&self, url: &str, size: i64) -> Result<EOCDOffset> {
         let signature = 0x06054b50;
         let signature_64 = 0x06064b50;
-        let mut offset = 0;
-        let mut inter = [0; 4];
-        let mut easy = Easy::new();
+        let mut offset;
         for i in 4..size + 1 {
             let pos = size - i;
             let resp = self.download_request_range(url, pos, pos + 4)?;
@@ -792,20 +812,16 @@ impl Gog {
         Err(NotAvailable.into())
     }
 }
-fn fold_mult(acc: String, now: &String) -> Result<String> {
-    return Ok(acc + "," + now);
+
+fn fold_mult(acc: String, now: &String) -> String {
+    acc + "," + now
 }
-fn bool_to_int(b: bool) -> i32 {
-    let mut par = 0;
-    if b {
-        par = 1;
-    }
-    return par;
-}
-fn vec_to_u32(data: &Vec<u8>) -> u32 {
+
+fn vec_to_u32(data: &[u8]) -> u32 {
     u32::from_le_bytes([data[0], data[1], data[2], data[3]])
 }
-/// A simple curl handler for a vector of bytes
+
+// A simple curl handler for a vector of bytes
 pub struct Collector(pub Vec<u8>);
 
 impl Handler for Collector {

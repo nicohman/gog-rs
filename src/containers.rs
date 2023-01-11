@@ -1,9 +1,12 @@
-use gog::*;
+use crate::gog::*;
+use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OwnedGames {
     pub owned: Vec<i64>,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GameDetailsP {
@@ -23,10 +26,11 @@ pub struct GameDetailsP {
     pub is_base_product_missing: bool,
     pub missing_base_product: Option<Value>,
 }
+
 impl GameDetailsP {
     // Yes, this is bad. Yes, I am sorry.
-    pub fn to_details(self, down: Downloads) -> GameDetails {
-        return GameDetails {
+    pub fn into_details(self, down: Downloads) -> GameDetails {
+        GameDetails {
             title: self.title,
             background_image: self.background_image,
             cd_key: self.cd_key,
@@ -37,10 +41,10 @@ impl GameDetailsP {
                 .dlcs
                 .into_iter()
                 .filter_map(|mut x| {
-                    if x.downloads.len() > 0 {
+                    if !x.downloads.is_empty() {
                         x.downloads[0].remove(0);
                         let stri = serde_json::to_string(&x.downloads[0][0]).unwrap();
-                        Some(x.to_details(serde_json::from_str(&stri).unwrap()))
+                        Some(x.into_details(serde_json::from_str(&stri).unwrap()))
                     } else {
                         None
                     }
@@ -54,17 +58,20 @@ impl GameDetailsP {
             forum_link: self.forum_link,
             is_base_product_missing: self.is_base_product_missing,
             missing_base_product: self.missing_base_product,
-        };
+        }
     }
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Success {
     pub success: bool,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Id {
     pub id: String,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StatusDel {
     pub status: String,
